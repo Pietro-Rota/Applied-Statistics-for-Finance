@@ -2849,7 +2849,7 @@ implied_vol <- function(market_price, S, K, r, T, type = "call") {
 T_left <- as.numeric(Qdate(19,12,2025)-Qdate(27,5,2025))/365
 market_price <- as.numeric(Cl(getSymbols(Symbols = "SPY", auto.assign = FALSE, from = Qdate(29, 4, 2025), to = Qdate(30, 4, 2025))))
 
-dir <- "C:\\Users\\pietr\\OneDrive\\Documenti\\aCATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\ASF\\SPY chain.xlsx"
+dir <- "C:\\Users\\pietr\\OneDrive\\Documenti\\CATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\ASF\\SPY chain.xlsx"
 
 ## calls 
 data_calls <- readxl::read_xlsx(dir, sheet = "CALLS") %>% 

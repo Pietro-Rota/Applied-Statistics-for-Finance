@@ -1,1 +1,19 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Ruserdata
+.yml
+
+
 /.quarto/
+/_site/
+
+# IDE and editor settings
+.vscode/
+Applied_statistics_for_finance_files/figure-html
+.RData
+.Rhistory
+Applied_statistics_for_finance.rmarkdown
+
+_quarto.yml
