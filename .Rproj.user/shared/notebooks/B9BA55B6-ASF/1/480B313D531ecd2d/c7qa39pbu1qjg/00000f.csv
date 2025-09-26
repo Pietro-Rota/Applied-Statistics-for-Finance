@@ -1,7 +1,0 @@
-"0","Z_df <- ROC(Cl(getSymbols(""Z"", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = ""cont"")"
-"0","grid.arrange(ncol=2, top = ""jan-jun 2021"","
-"0","gghistogram(Z_df, add.rug = F) + ggtitle(""Z histogram of logreturns""),"
-"0","gg_qq_plot(Z_df, title = ""Z""))"
-"2","Errore in data.frame(sample = sort(data), theoretical = qnorm(ppoints(length(data)))) : 
-  gli argomenti implicano un numero differente di righe: 755, 756
-"

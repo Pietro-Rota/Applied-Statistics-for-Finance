@@ -1,2 +1,0 @@
-"0","cbind(SMA(rnorm(801, sd = 20)/100, n = 50)+ dnorm(-400:400/100, mean = 0, sd = 1)) %>% "
-"0","  quickplot(title = ""Messier distribution with many obvious local maxima"")"

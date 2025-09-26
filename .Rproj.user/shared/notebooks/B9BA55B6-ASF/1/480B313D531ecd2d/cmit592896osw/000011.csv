@@ -1,5 +1,0 @@
-"0",""
-"0","#plot the Monte Carlo Simulation"
-"0","plot(MX_paths[1,], col=0, type=""l"", ylim = c(min(MX_paths),max(MX_paths)),"
-"0","     main = ""Monte Carlo Simulation for Meixner returns"", sub = ""100 steps, 10 paths"","
-"0","     xlab = ""Time"", ylab = ""MXNR returns"")"

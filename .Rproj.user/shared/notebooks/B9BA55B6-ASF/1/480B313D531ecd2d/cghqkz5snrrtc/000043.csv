@@ -1,3 +1,0 @@
-"0","grid.arrange(top = ""Distribution of last prices"", ncol=2,"
-"0","gghistogram(rn_final_pricesVG, bins = 30)+ labs(subtitle = ""After MCM""),"
-"0","gghistogram(final_pricesVG, bins = 30, fill = ""firebrick"")+ labs(subtitle = ""before MCM""))"

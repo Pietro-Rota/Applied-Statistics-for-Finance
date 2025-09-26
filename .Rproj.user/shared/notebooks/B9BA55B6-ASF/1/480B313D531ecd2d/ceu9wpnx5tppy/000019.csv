@@ -1,3 +1,0 @@
-"0",""
-"0","plot(density(l_ret[-1,]), type = ""l"", lwd = 2, main =""Density Plot - MSFT"","
-"0","     xlim= c(-0.15,-0.03), ylim=c(0,10))"

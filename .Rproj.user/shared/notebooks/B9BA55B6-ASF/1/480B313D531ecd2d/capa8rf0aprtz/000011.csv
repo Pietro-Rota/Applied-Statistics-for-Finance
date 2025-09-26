@@ -1,4 +1,0 @@
-"0","colori=viridis(nsim)"
-"0","plot(BM[1,], col=0, type=""l"", ylim = c(min(BM[1,]),max(BM[1,])), #plot the Monte Carlo Simulation"
-"0","     main = ""MC Simlation for BM"", sub = ""100 steps, 1 paths"", "
-"0","     xlab = ""Time"", ylab = ""BM Process"")"

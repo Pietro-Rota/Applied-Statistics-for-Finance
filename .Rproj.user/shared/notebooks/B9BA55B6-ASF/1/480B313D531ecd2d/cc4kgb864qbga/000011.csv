@@ -1,5 +1,0 @@
-"0",""
-"0","colori=viridis(10)"
-"0","plot(VGexp_paths[1,], col=0, type=""l"", ylim = c(min(VGexp_paths[1,]),max(VGexp_paths[1,])), #plot the Monte Carlo Simulation"
-"0","     main = ""MC Simlation for VG"", sub = ""100 steps, 1 paths"", "
-"0","     xlab = ""Time"", ylab = ""VG Process"")"

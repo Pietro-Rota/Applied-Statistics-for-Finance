@@ -1,5 +1,0 @@
-"0",""
-"0","# Add legend"
-"0","legend(""topright"", legend = c(""MC estimate"", ""B&S price"", ""MC Confidence Interval""),"
-"0","       col = c(""blue"", ""red"", ""blue""), lty = c(NA, 2, 1), pch = c(19, NA, NA),"
-"0","       lwd = c(2, 3, 2), bg = ""white"")"

@@ -1,8 +1,0 @@
-"0",""
-"0","d <- expression(6 - 3 * x)"
-"0","s <- expression(2 * sqrt(x))"
-"0","X <- sde.sim(X0 = 10, drift = d, sigma = s)"
-"2","sigma.x not provided, attempting symbolic derivation.
-
-"
-"0","quickplot(X, title = ""User-defined CIR"")"

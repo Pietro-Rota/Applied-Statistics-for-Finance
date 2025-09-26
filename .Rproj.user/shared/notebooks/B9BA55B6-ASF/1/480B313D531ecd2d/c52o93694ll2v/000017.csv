@@ -1,2 +1,0 @@
-"0","f <- function (u) dnorm (u, mean = mean (X), sd=sd(X))"
-"0","curve ( f, -0.1 , 0.1 , add =TRUE , col=""red "",lwd =2)"

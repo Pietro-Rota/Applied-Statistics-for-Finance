@@ -1,5 +1,0 @@
-"0","replicate(15, BM.vec(100)) %>%"
-"0","  quickplot(title = ""Montecarlo simulation of Brownian motion"", subtitle = ""No variance reduction"", "
-"0","            show_legend = F, x_size = 100)"
-"2","Errore in BM.vec(100) : non trovo la funzione ""BM.vec""
-"

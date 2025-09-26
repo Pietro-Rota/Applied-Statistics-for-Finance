@@ -1,5 +1,0 @@
-"0","dt <- seq(from = 0, to = 0.01, length.out = 100)"
-"0","a <- 1"
-"0",""
-"0","quickplot(abs((rnorm(1) * sqrt(a+dt)) - (rnorm(1) * sqrt(a)))/dt, "
-"0","          title = ""Differential limit in 0 goes to infinity"", linewidth = 1, show_legend = F)"

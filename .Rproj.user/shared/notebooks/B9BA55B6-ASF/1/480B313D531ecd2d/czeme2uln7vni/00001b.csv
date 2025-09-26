@@ -1,2 +1,0 @@
-"0","addVLine = function(dtlist) plot(addTA(xts(rep(TRUE,NROW(dtlist)),dtlist),on=1,col=""red""))"
-"0","addVLine(cpoint(S)$tau0)"

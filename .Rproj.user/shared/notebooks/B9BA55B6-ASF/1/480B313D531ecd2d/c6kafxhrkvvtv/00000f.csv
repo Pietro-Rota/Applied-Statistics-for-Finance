@@ -1,8 +1,0 @@
-"0","# inverse transform method"
-"0","X <- runif(1000)"
-"0","lambda <- 5"
-"0","Y <- exp(-lambda*X)"
-"0","Y_inv <- (-1/lambda)*log(Y)"
-"0","check_acc(X, Y_inv)"
-"2","[38;5;237mScale for [32my[38;5;237m is already present.
-Adding another scale for [32my[38;5;237m, which will replace the existing scale.[39m"

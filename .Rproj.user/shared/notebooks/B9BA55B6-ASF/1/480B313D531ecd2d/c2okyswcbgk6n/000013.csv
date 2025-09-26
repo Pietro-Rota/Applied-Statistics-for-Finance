@@ -1,2 +1,0 @@
-"0",""
-"0","  replicate(10, runif(20)) %>% quickplot(title = ""Simulation of different Uniform distributions"", linewidth = 0.6, show_legend = F)"

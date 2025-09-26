@@ -1,2 +1,0 @@
-"0","SPY_df <- ROC(Cl(getSymbols(""SPY"", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = ""cont"")"
-"0","gghistogram(SPY_df, add.rug = F) + ggtitle(""SPY histogram of logreturns"")"
