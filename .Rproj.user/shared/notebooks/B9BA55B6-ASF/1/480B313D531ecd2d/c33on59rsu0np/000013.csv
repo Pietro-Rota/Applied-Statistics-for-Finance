@@ -1,0 +1,6 @@
+"0","## Log-returns with change-point line"
+"0","S <- as.numeric(S)"
+"0","n <- length(S)"
+"0","X <- log(S[-1]/S[-n])"
+"0",""
+"0","plot(X, type = ""l"", main = ""Apple stock log-returns"")"

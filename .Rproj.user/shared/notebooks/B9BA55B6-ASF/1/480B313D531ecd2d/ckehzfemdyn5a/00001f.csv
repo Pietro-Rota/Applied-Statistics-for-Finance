@@ -1,0 +1,4 @@
+"0",""
+"0","# Setup the plot"
+"0","plot(m, p1, type = ""n"", ylim = c(minP, maxP), axes = FALSE, "
+"0","     ylab = ""MC price"", xlab = ""MC replications"", main = ""Monte Carlo Option Pricing"")"

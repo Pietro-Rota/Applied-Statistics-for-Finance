@@ -1,0 +1,9 @@
+"0","colori=viridis(nsim)"
+"0","plot(NIG_paths[nsimplot(NIG_paths[1,], col=0, type=""l"", ylim = c(min(NIG_paths[1,]),max(NIG_paths[1,])), #plot the Monte Carlo Simulation"
+"0","     main = ""MC Simlation for NIG"", sub = ""100 steps, 1 paths"", "
+"0","     xlab = ""Time"", ylab = ""NIG Process"")"
+"0","lines(NIG_paths[1,], col=colori[20], lwd = 2)"
+"2","Errore: simbolo inatteso in:
+""     xlab = ""Time"", ylab = ""NIG Process"")
+lines""
+"

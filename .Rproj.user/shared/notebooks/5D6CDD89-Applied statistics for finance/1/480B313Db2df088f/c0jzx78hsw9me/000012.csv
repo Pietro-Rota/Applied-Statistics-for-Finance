@@ -1,0 +1,10 @@
+"0","data.frame(LR_sort = xnorm,"
+"0","           norm_MLE = rnorm(n, mean = coef(fit)[1], coef(fit)[2])) %>%"
+"0","  ggplot() +"
+"0","  geom_histogram(aes(x = LR_sort, fill = ""Norm""), alpha = 0.8, bins = 80) +"
+"0","  geom_histogram(aes(x = norm_MLE, fill = ""norm_MLE""), alpha = 0.8, bins = 80) +"
+"0","  labs(title = ""Distribution charts of both the real and the simulated data"", x = NULL) +"
+"0","  scale_fill_manual(name = NULL, values = c(Norm = ""indianred3"", norm_MLE = ""olivedrab2"")) +"
+"0","  theme(legend.position = ""bottom"")"
+"2","Errore in gzfile(file, ""wb"") : non è possibile aprire la connessione
+"

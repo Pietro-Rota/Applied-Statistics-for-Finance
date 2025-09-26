@@ -1,0 +1,3 @@
+"0","library(readxl)"
+"0","Options_input <- read_excel(""~/aCATTOLICA ANNO 24-25/2 SEMESTRE/(ASF) - Applied Statistics for Finance/(ASF) - Python/Options_input.xlsx"")"
+"0","Options_input"

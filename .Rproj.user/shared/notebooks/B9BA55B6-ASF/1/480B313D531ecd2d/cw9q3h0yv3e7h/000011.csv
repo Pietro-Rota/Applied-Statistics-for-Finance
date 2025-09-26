@@ -1,0 +1,13 @@
+"0",""
+"0","set.seed(123)"
+"0","X2 <- sde.sim(X0 =10, theta =c(6 ,3,2) , rcdist =rcCIR, method =""cdist"", M = 1000)"
+"0","set.seed(123)"
+"0","X_many <- sde.sim(X0 =10, drift = d, sigma = s, M = 1000)"
+"2","sigma.x not provided, attempting symbolic derivation.
+
+"
+"0","X2_mean <- apply(X2, 1, mean)"
+"0","X_many_mean <- apply(X_many, 1, mean)"
+"0","check_acc(X2_mean, X_many_mean, title = ""hand-made CIR and sde CIR across 1000 simulations"")"
+"2","[38;5;237mScale for [32my[38;5;237m is already present.
+Adding another scale for [32my[38;5;237m, which will replace the existing scale.[39m"

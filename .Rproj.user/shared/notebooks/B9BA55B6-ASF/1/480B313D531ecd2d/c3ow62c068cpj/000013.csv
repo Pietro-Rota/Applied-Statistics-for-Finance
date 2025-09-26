@@ -1,0 +1,6 @@
+"0","S <- get.hist.quote(""AAPL"", start = ""2010-01-01"", end = ""2022-01-01"")"
+"1","time series starts 2010-01-04
+"
+"1","time series ends   2021-12-31
+"
+"0","chartSeries(S, TA=c(addVo(), addBBands()), theme=""white"")"

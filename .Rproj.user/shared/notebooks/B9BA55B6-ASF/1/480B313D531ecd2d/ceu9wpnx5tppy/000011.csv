@@ -1,0 +1,7 @@
+"0",""
+"0","qqvg(l_ret.s, vgC = c, sigma = sigma, theta = theta, nu = nu,"
+"0","     param = c(c, sigma, theta, nu), main = ""Variance Gamma Q-Q Plot"","
+"0","     xlab = ""Theoretical Quantiles"", "
+"0","     ylab = ""Sample Quantiles"","
+"0","     plot.it = TRUE, "
+"0","     line =TRUE)"

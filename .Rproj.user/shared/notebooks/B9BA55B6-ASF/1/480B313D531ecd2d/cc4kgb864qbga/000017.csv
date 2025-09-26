@@ -1,0 +1,4 @@
+"0","colori=viridis(nsim)"
+"0","plot(VGexp_paths[1,], col=0, type=""l"", ylim = c(min(VGexp_paths),max(VGexp_paths)), #plot the Monte Carlo Simulation"
+"0","     main = ""MC Simlation for VG stock prices"", sub = ""10 steps, 10 paths"", "
+"0","     xlab = ""Time"", ylab = ""STLA"")"

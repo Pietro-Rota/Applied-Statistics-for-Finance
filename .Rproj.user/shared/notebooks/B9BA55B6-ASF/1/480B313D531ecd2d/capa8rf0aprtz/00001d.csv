@@ -1,0 +1,5 @@
+"0",""
+"0","colori=viridis(nsim)"
+"0","plot(GBM_paths[1,], col=0, type=""l"", ylim = c(min(GBM_paths),max(GBM_paths)), "
+"0","     main = ""MC Simlation for GBM stock prices"", sub = ""3 steps, 10 paths"", "
+"0","     xlab = ""Time"", ylab = ""MSFT"")"

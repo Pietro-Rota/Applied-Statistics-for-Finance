@@ -1,0 +1,3105 @@
+---
+title: "Applied Statistics for Finance"
+date-modified: "`r Sys.Date()`"
+editor: source
+format:
+  html:  
+    code-tools: true
+    code-fold: true
+    code-summary: "Show code"
+    html-table-processing: none
+    df-print: kable
+    code-block-border-left: "royalblue"
+    code-block-bg: true
+    embed-resources: true
+    # monofont: sans
+    self-contained: true
+    number-sections: true
+toc: true
+lang: en
+author:
+  - name: Pietro Rota
+    id: PR
+    email: pietro.rota01@icatt.it
+    affiliation: 
+      - name: Università cattolica del sacro cuore
+        city: Milano
+        state: IT
+        url: https://www.unicatt.it/
+theme:
+  - cosmo 
+  - ASF.scss
+---
+
+```{r setup, include = FALSE}
+# library(quantmod)
+# library(ggplot2)
+# library(magrittr)
+library(broom)
+# library(dplyr)
+# library(plotly)
+library(hrbrthemes)
+library("viridis")
+# library(sde)
+library(tseries)
+library(Runuran)
+library(moments)
+library(fBasics)
+library("stats4")
+library(yuima)
+library(VarianceGamma)
+library(ghyp)
+library(GeneralizedHyperbolic)
+library(EnvStats)
+library(Sim.DiffProc)
+source("C:/Users/pietr/OneDrive/Desktop/formula.main.R")
+knitr::opts_chunk$set(error=TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+Sys.setlocale("LC_TIME", "English") # set output language in English
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(tidy=TRUE)
+library(microbenchmark)
+
+
+gghistogram <- function (x, add.normal = FALSE, add.kde = FALSE, add.rug = FALSE, bins, boundary = 0, 
+                         fill = "#1f77b4", title = element_blank(), subtitle = element_blank()) {
+    if (!requireNamespace("ggplot2", quietly = TRUE)) {
+        stop("ggplot2 is needed for this function to work. Install it via install.packages(\"ggplot2\")", 
+            call. = FALSE)
+    }
+    else {
+        if (missing(bins)) {
+            bins <- min(500, grDevices::nclass.FD(na.exclude(x)))
+        }
+        data <- data.frame(x = as.numeric(c(x)))
+        binwidth <- (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))/bins
+        
+        p <- ggplot2::ggplot() +
+          ggplot2::geom_histogram(ggplot2::aes(x), data = data, binwidth = binwidth, 
+                                  boundary = boundary, fill = fill) +
+          ggplot2::labs(title = title, subtitle = subtitle)
+          ggplot2::xlab(deparse(substitute(x)))
+        if (add.normal || add.kde) {
+            xmin <- min(x, na.rm = TRUE)
+            xmax <- max(x, na.rm = TRUE)
+            if (add.kde) {
+                h <- stats::bw.SJ(x)
+                xmin <- xmin - 3 * h
+                xmax <- xmax + 3 * h
+            }
+            if (add.normal) {
+                xmean <- mean(x, na.rm = TRUE)
+                xsd <- sd(x, na.rm = TRUE)
+                xmin <- min(xmin, xmean - 3 * xsd)
+                xmax <- max(xmax, xmean + 3 * xsd)
+            }
+            xgrid <- seq(xmin, xmax, length.out = 512)
+            if (add.normal) {
+                df <- data.frame(x = xgrid, y = length(x) * binwidth * 
+                  stats::dnorm(xgrid, xmean, xsd))
+                p <- p + ggplot2::geom_line(ggplot2::aes(df$x, 
+                  df$y), col = "#ff8a62")
+            }
+            if (add.kde) {
+                kde <- stats::density(x, bw = h, from = xgrid[1], 
+                  to = xgrid[512], n = 512)
+                p <- p + ggplot2::geom_line(ggplot2::aes(x = kde$x, 
+                  y = length(x) * binwidth * kde$y), col = "#67a9ff")
+            }
+        }
+        if (add.rug) {
+            p <- p + ggplot2::geom_rug(ggplot2::aes(x))
+        }
+        return(p)
+    }
+}
+```
+
+```{r set x to time, include =FALSE}
+if (knitr::is_latex_output() || knitr::is_html_output()) {
+  # Code that runs only during rendering
+  print(knitr::is_latex_output())
+  print(knitr::is_html_output())
+  library(purrr, quietly = T, warn.conflicts = F)
+  quickplot <- partial(quickplot, xlab = "time")
+}
+```
+
+<details>
+
+<summary>Full dependencies list, click to expand list</summary>
+
+```{r functions_loaded, echo=FALSE}
+file <- "ASF.qmd"
+functions_loaded(file)
+```
+
+Packages required to run this file
+
+```{r required_packages, echo=FALSE}
+required_packages(file)
+```
+
+Functions defined in this document
+
+```{r required_functions, echo=FALSE}
+required_functions(file)
+```
+
+</details>
+
+# Random number generators and Monte Carlo
+
+much of this is based on a generative function that is forward looking of pseudo random values $x_{n+1} = f(x_n)$ given $x_{n+1}$ is not possible to obtain $x_n$ and given the numbers often times its not possible to invert the results and get back the function $f(x)$
+
+lets start wiht the uniform distribution, it takes a number from 0 and 1 equally distributed set seed allows replicability, if you set the seed immediately before running `runif` you get the same numbers.
+
+```{r Uniform distribution}
+hist(runif(1000), nclass  = 1, xlim = c(0,3))
+quickplot(runif(1000), title = "Uniform distributions", show_legend = F)
+
+  replicate(10, runif(20)) %>% quickplot(title = "Simulation of different Uniform distributions", linewidth = 0.6, show_legend = F)
+
+set.seed(123)
+runif(10)
+set.seed(123)
+runif(10)
+```
+
+For discrete random variables, the inverse $f^{-1}(x)$ is always easy to obtain Instead of simulating from an exponential i can take the uniform distribution and isolate the $x$ as a function of $U(0,1)$ after this can be done for discrete distributions and exponential for continuous time series $$F(x) = 1 − e^{−λx}$$ $$F(x)^{-1} \rightarrow X= −\frac1λln(U)$$
+
+```{r inverse}
+# inverse transform method
+X <- runif(1000)
+lambda <- 5
+Y <- exp(-lambda*X)
+Y_inv <- (-1/lambda)*log(Y)
+check_acc(X, Y_inv)
+```
+
+For a normal distribution you can’t invert it, however you can solve it numerically But you can get the computer to get to guess the $x$
+
+Alternatively, you can use the so-called acceptance-rejection method.
+
+Let $X$ be a random variable with density $f$ for which no RNG exists. Assume you know how to simulate from Y with density g and there exists a constant $c > 0$ such that
+
+$$
+max \frac{f(x)}{cg(x)}< 1 \ \ \  \ \ \forall x
+$$
+
+Get the distribution $f(x)$ (target) and another distribution $g(x)$ (envelope) The 2 distribution need to be similar enough so that the distribution stays in the envelope but not so big that everything is rejected for this example lets use a normal CDF and a uniform distribution CDF
+
+```{r Acc Rej meth}
+dn <- dnorm(-400:400/100)
+
+c <- 1
+data.frame(density = dn, x = (1:801) / 801, unif = 1) %>%
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = density)) +
+  geom_ribbon(aes(ymin = 0, ymax = 1), alpha = 0.3, color = "black") +
+  xlim(c(0, 1.5)) +
+  labs(title = "Acceptance-rejection method", subtitle = paste0("c=", c),
+      x = paste0("Result of the function ", round(max(dn/(c*1)), 4)))
+
+
+max(dn/(c*1))
+
+c <- 2
+dt_stud <- dt(x = -400:400 / 100, df = 1)
+data.frame(density = dn, x = (1:801) / 801, tnorm = dt_stud) %>%
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = density)) +
+  geom_ribbon(aes(ymin = 0, ymax = tnorm * c), alpha = 0.3, color = "black") +
+  labs(title = "Acceptance-rejection method", subtitle = paste0("c=", c),
+       x = paste0("Result of the function ", round(max(dn/(c*dt_stud)), 4)))
+
+max(dn/(c*dt_stud))
+```
+
+In this case we can obviously see that this distribution is not a good fit and we cant I am therefore looking for a costant c which is big enough so that $cg(x)$ can contain $f(x)$, but I want the bare minimum for that to happen: the bigger $cg(x)$ the higher the risk of falling into therejection area and therefore of simulating values that I cannot use.
+
+For any complex distribution some programmer went and developed the inverse to then apply from the uniform distribution
+
+## The Monte Carlo Method
+
+The Monte Carlo Method is a numerical method based on statistical arguments which can be used to generate draws from a probability distribution and to evaluate integrals. In particular, the expected value of a random variable X with density $f(·)$ is an integral of this form
+
+$$\mathbb E (X) = \int x·f(x)dx$$
+
+we use the Monte Carlo Method to evaluate the expected payoff of some derivative in order to price it.
+
+thanks to the Law of Large Numbers in addition with the Central Limit Theorem we a correct estimation of the distribution ending points is the average
+
+$$
+\mathbb E\Big(g(Y)\Big) \cong \frac1n \sum_{i=1}^n g(y_i) = \bar g_n
+$$ additionally we can draw the distribution based on this thanks to CLI and LLN
+
+$$
+\frac1n \sum_{i=1}^n g(y_i) \sim N\bigg(\mathbb E\Big(g(Y)\Big), \frac1nVAR\Big(g(Y)\Big)\bigg)
+$$
+
+and we can use this to actually price the option Get the mean and discount it to $t_0$ Stocks that don’t execute option still count and lower values $$e^{-rt}⋅E[max⁡(0,S-K]$$
+
+```{r Montecarlo}
+GBM.vec <- function(N = 100, x = 10, r = 1, sigma = 0.5, Time = 1) {
+  # r = 1
+  # sigma = 0.5
+  # x = 10
+  # N = 100                  # number of grid points including maturity Time
+  # Time = 1                 # length of the interval [0, Time] in time units
+  
+  Delta <- Time/(N+1)        # time increment (dt)
+  W <- numeric(N)            # initialization of the vector W
+  
+  Time <- seq(0, Time, length=N)
+  for(i in 2:N)
+           W[i] <- W[i-1] + rnorm(1) * sqrt(Delta)
+  
+  S <- x * exp((r-sigma^2/2)*Time + sigma*W)
+  return(S)
+}
+
+MNC_Sim <- replicate(100, GBM.vec(sigma = 0.8))
+MNC_Sim %>% quickplot("Montecarlo simulation of geometric brownian motion",show_legend = F, x_size = 100)+
+  geom_hline(aes(yintercept = 30), linewidth = 2, color = "red")
+
+mean_option <- mean(ifelse(last(MNC_Sim)>30, yes = last(MNC_Sim), 0))
+
+cat("mean of last datapoints", mean_option, "\n")
+cat("price of option according to MNC", exp(-1*1)*mean_option)
+```
+
+This approach unfortunately becomes unreliable if there is a lot of variance which requires variance reduction techniques.
+
+The price of a derivative is given by the general formula $$Pt = e^{−r (T−t)}\mathbb E{f(S_T)}$$ where $f(·)$ is some payoff function, e.g. $f (ST ) = max(S_T − K, 0)$ for a European call option with strike price K, maturity T. We need to estimate via Monte Carlo the expected value and, to this end, we need to be able to simulate the values of ST . So we need to know how to simulate stochastic processes.
+
+### Montecarlo simulations
+
+```{r lines}
+replicate(15, BM.vec(100)) %>%
+  quickplot(title = "Montecarlo simulation of Brownian motion", subtitle = "No variance reduction", 
+            show_legend = F, x_size = 100)
+```
+
+$$S_t=x\cdot e^{\big(r-\frac{σ^2}{2}\big)\cdot t+σ\ W_t}$$ with $t>0$ and $x=S_0$
+
+# Simulation of Stochastic Processes
+
+A process that not only generates random numbers but also includes some drift component like the average growth coupled with a unexpected component
+
+trajectory or path of the random process, seen as a function of time. A trajectory represents the dynamic evolution of the stochastic process in time.
+
+We divide this family of processes and variables along 2 axis and 4 categories
+
+|          |           |                            |                           |
+|:--------:|:---------:|:--------------------------:|:-------------------------:|
+|          |           |      **State space**       |                           |
+|          |           |          discrete          |         continous         |
+| **Time** | discrete  | Random walks Markov Chains |       ARIMA, GARCH        |
+|          | continous |          Poisson           | Lévy Wiener Diffusion SDE |
+
+Continuous time and discrete time can be evaluated at any point in time vs a discrete model that only allows evaluation at only specified times
+
+this is not possible in a practical and computational meaning, if you zoom infinitely you will always find space between the points.
+
+So we include the concept of grid points (/time discretization points) allowing us to turn a continuous function to a discrete function $0→T$ divided into 100 points means that my “continuous time function” is discrete in 100 points
+
+## Wiener process and basic Brownian motion
+
+We use the notation $W_t$ or $B_t$ interchangeably
+
+Brownian motion (or Wiener process) is a stochastic process $(B_t,t ≥ 0)$ starting from $0$ at $t_0$, i.e. $B0 = 0$, with the following properties:
+
+**Independent increments** What happens from one discretization point to the next is all independent (yesterday doesn’t influence tomorrow)
+
+$B_t − B_s$ and $B_u − B_v$ with $t,s,u,v$ being different points in time, independent for $(s,t) ∩ (v, u) = ∅$
+
+**stationary increments** But the distribution assumption doesn’t change $dB = B_t-B_s$ depends only on $t − s$ and not by $t$ or $s$ separately
+
+**Gaussian increments** most known property and most basic $dB \sim N(0,t − s)$ and$Bt \sim N(0,t)$
+
+it requires first finding out your grid points, take your maturity time $T$ and divide it into as many steps you want $N$, `step_size = N` makes so that the x axis goes from 0 to $T$
+
+$$W(t_i) = W(t_{i−1}) + z ·\sqrt{∆t}$$
+
+```{r wiener process}
+N <- 100                 # number of end-points of the grid including Time
+Time <- 1                # length of the interval [0, Time] in time units
+Delta <- Time/N          # time increment (dt)
+W <- numeric(N+1)        # initialization of the vector W
+Time <- seq(0, 1, length=N)
+
+for (i in 2:(N + 1)) {
+  W[i] <- W[i - 1] + rnorm(1) * sqrt(Delta)
+}
+
+quickplot(W, title = "Simulation of Wiener processes", show_legend = F, x_size = N, linewidth = 1)
+```
+
+Different ways to make it more efficient using `system.time` to get the accurate time of the ways to compute, since `microbenchmark` gives a weird result sometimes, this means that from now on I will be using `BM.vec` to get the Brownian motion
+
+```{r BM, warning=TRUE}
+# brutal code
+BM.1 <- function(N=10000){ 
+  W <- NULL
+  for(i in 2:(N+1))
+         W <- c(W, rnorm(1) / sqrt(N))
+  return(W)
+}
+system.time(BM.1())
+
+# smarter
+BM.2 <- function(N=10000){
+  W <- numeric(N)
+  Z <- rnorm(N-1)
+  for(i in 2:(N))
+         W[i] <- W[i-1] + Z[i-1] / sqrt(N)
+  return(W)
+}
+system.time(BM.2())
+
+# awesome!
+BM.vec <- function(N = 10000) {
+  W <- c(0, cumsum(rnorm(N-1) / sqrt(N-1)))
+  return(W)
+}
+system.time(BM.vec())
+```
+
+Its no differentiable so you do it by hand basically by getting 2 points, one at $t=a$ and the next at $t=a+∆t$ and make a $∆t→0$ this gets you the value which goes to $+∞$
+
+$$\lim_{∆t→0} \frac{|W (a + ∆t) − W (a)|}{∆t} ≃ \lim_{∆t→0} \frac{|\sqrt{∆t}|}{∆t}=+∞$$
+
+```{r der BM}
+dt <- seq(from = 0, to = 0.01, length.out = 100)
+a <- 1
+
+quickplot(abs((rnorm(1) * sqrt(a+dt)) - (rnorm(1) * sqrt(a)))/dt, 
+          title = "Differential limit in 0 goes to infinity", linewidth = 1, show_legend = F)
+```
+
+Which as we said before we said that the lim is infinity, it means that the stochastic process you will not be using the component in of itself but you will use the integral (integral of the derivative cancel each other out and allows the process to not go to infinity)
+
+$$X_t=X_0+\int_{0}^{t}\Big(b(X_S)ds\Big)+\int_{0}^{t}\Big(\sigma\left(X_S\right)dW_S\Big)$$
+
+## Geometric Brownian motion
+
+You can’t use the wiener process to simulate the stock path - It goes in the negative which stocks can’t - It starts from 0 - It has no trend So, we need a stochastic differential equation
+
+A stochastic differential equation models the noise (or the stochastic part) of this system by adding the variation of some stochastic process to the above dynamics, e.g. the Wiener process, also it can go below $S_0$ but not below $0$
+
+$$
+\frac{X_{t+dt} − X_t}{dt} = \frac{dX_t}{dt}= b(X_t)
+$$ $$
+dX_t = b(X_t)dt + σ(X_t)dW_t
+$$
+
+Evolution through time $b(X_t)dt$ Deterministic trend $σ(X_t)$ Stochastic noise $dW_t$
+
+Differential because it is based on increments derivatives Which as we said before we said that the lim is infinity, it means that the stochastic process you will not be using the component in of itself but you will use the integral (integral of the derivative cancel each other out and allows the process to not go to infinity)
+
+Finally giving us the final closed formula solution
+
+$$S_t=x_0\cdot EXP\bigg\{\bigg(r-\frac{\sigma^2}{2}\bigg)t+σW_t \bigg\} \ \ \ \ \ \  t>0$$
+
+With all time steps all normally distributed, With no skew or kurtosis, so no spikes in the movement
+
+No spike component means that it will trend to the drift component in the long run
+
+```{r GBM.vec}
+r <- 1
+sigma <- 0.5
+x <- 10
+N <- 100                   # number of grid points including maturity Time
+Time <- 1                  # length of the interval [0, Time] in time units
+Delta <- Time/N            # time increment (dt)
+W <- numeric(N+1)          # initialization of the vector W
+
+Time <- seq(0, Time, length=N+1)
+
+for(i in 2:(N + 1)) {
+  W[i] <- W[i - 1] + rnorm(1) * sqrt(Delta)
+}
+
+S <- x * exp((r-sigma^2/2)*Time + sigma*W)
+
+quickplot(data.frame(StockPath = S), 
+          title = "geometric Brownian motion", x_size = N, linewidth = 1)
+
+
+GBM.vec <- function(N = 100, x = 10, r = 1, sigma = 0.5, Time = 1) {
+  # r = 1
+  # sigma = 0.5
+  # x = 10
+  # N = 100                  # number of grid points including maturity Time
+  # Time = 1                 # length of the interval [0, Time] in time units
+  
+  Delta <- Time/N            # time increment (dt)
+  W <- numeric(N+1)          # initialization of the vector W
+  
+  Time <- seq(0, Time, length=N+1)
+  for(i in 2:(N+1))
+           W[i] <- W[i-1] + rnorm(1) * sqrt(Delta)
+  
+  S <- x * exp((r-sigma^2/2)*Time + sigma*W)
+  return(S)
+}
+
+replicate(10, GBM.vec()) %>% 
+  quickplot("Montecarlo simulation of geometric brownian motion", x_size = 100, show_legend = F)
+```
+
+## Variance reduction techniques
+
+The most basic approach is to use antithetic sampling.
+
+It is based on the assumption that if you take half of the distribution positive and the rest negative it leaves the the distribution unchanged (for example, if X is Gaussian, then −X is Gaussian as well).
+
+Instead of simulating 1000 stock paths, I get only 500 from f(x) and the rest from f(-x) Which is the Antithetic part
+
+Balancing back a outlier in the distribution with an equal number of simulations from the other side of the distribution, making it equally probable that I pick the same amounts of outliers
+
+This only works when the distribution has the same distributional assumptions for $X$ and $-X$
+
+**approach from slides**
+
+$y_1$ is computed using x, while $y_2$ is computed using -x (its antithetic counterpart).
+
+The function being evaluated resembles a payoff function (e.g., a put option with an exponential term).
+
+The idea is that if $x$ produces an extreme value in one direction, $−x$ produces an opposite (but compensating) value, making the estimate more stable.
+
+Compared to a theoretical benchmark an analytical formula for the expectation being estimated. Pricing formula for a European-style option
+
+```{r VRT slides}
+n <- 1000
+beta <- 1
+K <- 1
+x <- rnorm(n)
+y1 <- sapply(x , function(x) max(0 , K - exp(beta * x)))
+y2 <- sapply(-x , function(x) max(0 , K - exp(beta * x)))
+mean((y1 + y2) / 2) # MC with antithetic sampling
+K * pnorm(log(K) / beta) - exp (beta^2 / 2) * pnorm(log(K) / beta - beta)
+```
+
+Graphical approach using geometric brownian motion, with the 2 equations being: A normal geometric brownian motion $$S_t=x_0\cdot EXP\bigg\{\bigg(r-\frac{\sigma^2}{2}\bigg)t+σW_t \bigg\} \ \ \ \ \ \  t>0$$ And an inverse geometric brownian motion ($-\sigma W_t$) $$S_t=x_0\cdot EXP\bigg\{\bigg(r-\frac{\sigma^2}{2}\bigg)t-σW_t \bigg\} \ \ \ \ \ \  t>0$$
+
+```{r VRT graph}
+# another function with  
+GBM.vec_inv <- function(N = 100, x = 10, r = 1, sigma = 0.5, Time = 1) {
+  # r = 1
+  # sigma = 0.5
+  # x = 10
+  # N = 100                  # number of grid points including maturity Time
+  # Time = 1                 # length of the interval [0, Time] in time units
+
+  Delta <- Time / (N + 1)            # time increment (dt)
+  W <- numeric(N)          # initialization of the vector W
+
+  Time <- seq(0, Time, length = N)
+  for (i in 2:N)
+    W[i] <- W[i - 1] + rnorm(1) * sqrt(Delta)
+
+  S <- x * exp((r - sigma^2 / 2) * Time - sigma * W)
+  return(S)
+}
+
+N <- 100                # number of grid points including maturity Time
+M <- 1000               # number of simulations (min 3)
+x <- 10
+r <- 1
+sigma <- 0.5
+Time <- 1
+
+norm <- replicate(M,     GBM.vec(N = N, x = x, r = r, sigma = sigma, Time = Time))
+inv  <- replicate(M, GBM.vec_inv(N = N, x = x, r = r, sigma = sigma, Time = Time))
+
+long_norm <- melt(norm[,seq(from = 1, to = min(50,M), by =2)]) %>% 
+  mutate(Var1 = Var1/N)
+long_inv  <- melt( inv[,seq(from = 1, to = min(50,M), by =2)]) %>% 
+    mutate(Var1 = Var1/N)
+
+ggplot() +
+  geom_line(data = long_norm, aes(x = Var1, y = value, group = Var2, colour = "Normal"), linewidth = 1) +
+  geom_line(data = long_inv,  aes(x = Var1, y = value, group = Var2, colour = "Inverted"), linewidth = 1) +
+  scale_color_manual(values = c(Normal = "darkblue", Inverted = "darkred")) +
+  labs(title = ifelse(M > 50, paste("50 simulations out of", M, "total"), paste(M, "simulations")),
+    subtitle = "Color coded split half normal half inverted", x = "time", y = "Value of GBM")
+
+other_half_no_VRT <- replicate(M/2, GBM.vec(N = N, x = x, r = r, sigma = sigma, Time = Time))[N, ]
+sim_no_VRT <- c(other_half_no_VRT, norm[N, ])
+
+df <- data.frame(
+  Category = c("BASE NORM", "BASE INV", "VRT", "NO VRT", "BASE OTHER HALF"),
+  Variance = c(
+    var(norm[N, ]),
+    var(inv[N, ]),
+    var(c(norm[N, ], inv[N, ])) ,
+    var(sim_no_VRT),
+    var(other_half_no_VRT)))
+
+ggplot(df, aes(x = Category, y = Variance, fill = Category)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Variance Comparison", x = "Category", y = "Variance") +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = c(min(df$Variance) - 10, max(df$Variance) + 10))  # Zoom without data loss
+```
+
+NORM variance: `r round(digits = 2, var(norm[N, ]))`
+
+INV variance: `r round(digits = 2, var(inv[N,  ]))`
+
+Variance with VRT of my simulations: `r round(digits = 2, var(c(norm[N, ],inv[N, ])))`
+
+Variance no VRT, just the normal simulations and another M=`r M/2` simulations: `r round(digits = 2, var(sim_no_VRT))`
+
+### Other examples of common stochastic processes in their closed formula
+
+**Geometric Brownian motion (gBm)** $dX_t = µX_t d_t + σX_t dW_t$ Standard model for asset prices in Black-Scholes, lacks mean reversion.
+
+**Cox-Ingersoll-Ross (CIR)** $dX_t = (θ_1 + θ_2X_t)dt + θ_3 \sqrt{X_t}dW_t$ Mean reverting property variation according to wiener process but mean reverting in $\lim(t)$ Ensures non-negative interest rates due to the square root term
+
+**Chan-Karolyi-Longstaff-Sanders (CKLS)** $dX_t = (θ_1 + θ_2X_t)dt + θ_3X^{θ_4}_t dW_t$ mean reverting but with 2 variation component allowing more stray from trend Still no spikes component outright Generalizes CIR by allowing more flexible volatility behavior.
+
+**Nonlinear mean reversion (Ait-Sahalia)** $dX_t = (α_{−1} X^{−1}_t + α_0 + α_1 X_t + α_2 X^2_t)dt + β_1X^ρ_t dW_t$ Can capture extreme deviations from equilibrium due to nonlinear drift.
+
+**Double Well potential (bimodal behavior, highly nonlinear)** $dX_t = (X_t – X^3_t)dt + dW_t$ System fluctuates between two stable states, useful for modeling regime shifts.
+
+**Jacobi diffusion (political polarization)** $dX_t = −θ\left(X_t - \frac12\right)dt +\sqrt{θX_t(1 – X_t)}dW_t$ Constrains values to the interval (0,1), suitable for proportions like voting shares.
+
+**Ornstein-Uhlenbeck (OU)** $dX_t = θX_tdt + dW_t$ Also mean reverting also used for interest rates Widely used for modeling interest rates and volatility.
+
+**Radial Ornstein-Uhlenbeck** $dX_t = (θX^{−1}_t - X_t)dt + dW_t$ Ensures positive values, often used in stochastic volatility models.
+
+### SDE package
+
+the sde package allows to simulate and use stochastic differential equations, the main function is `sde.sim` one of the main features of this function is the `model` which allows for multiple different complex models to be used `CIR` Cox-Ingersoll-Ross , `VAS` Vaisicek, `OU` Ornstein-Uhlenbeck , `BS` Geometric browninan motion used for Black and scholes
+
+```{r SDE, message=FALSE}
+n <- 100                        # number of simulation steps.
+Delta <- 0.01                   #	time step of the simulation
+S0 <- 10                        # fix initial value
+mu <- 0.1                       # fix the drift value
+sigma <- 0.2                    # and one for the volatility
+ 
+## theta = vector of parameters for cdist
+sde.sim(X0=S0, N=n, delta=Delta, model="BS", theta=c(mu, sigma)) %>% 
+quickplot(title="Geometric Brownian motion", show_legend = F)
+
+
+sde.sim(X0=S0, N=n, M = 10, delta=Delta, model="BS", theta=c(mu, sigma)) %>%
+  quickplot("Montecarlo simulation of SDE Brownian motion", subtitle = "`M` allows to simulate more than one path", show_legend = F)
+```
+
+### Markov property
+
+based on the principle of **Filtration**, which is "how much past conditional information does the function have" since all of these processes are backward looking you can only get information from the past.
+
+In n-1 my filtration is the vector that the timeseries allows to have, for one year filtration each point of the vector will have vector of 252 data points up to today so the past 252 datapoints (trading days)
+
+If a stochastic process follows the Markov property you can expect the value of the asset tomorrow is (conditional) based on the information up to now is equal to the expected value conditional on **just the last datapoint available**
+
+The Wiener process and the gBm are Markov processes! think of the closed form formula where you just have $x_0$
+
+Of course the obvious issue is that the markov processes have no memory of the past, and as such are they are not able to capture patterns
+
+### Martingale
+
+-   If $E(X_{n+1}|X_1, ..., X_n) ≥ X_n$ it is a submartingale.
+
+-   If $E(X_{n+1}|X_1, ..., Xn) ≤ X_n$ it is a supermartingale.
+
+### Discertization / Simulation strategies
+
+3 methods: - exact sampling (GBM) know everything and use either reverse or acceptance rejection method - conditional distribution (CIR OU GBM) since all are markovian once you have simulated all the values look at today - discretization methods () take your function with the integral since there are no closed for solutions, solving both component numerically
+
+Discretization methods `sde.sim` does a lot of them `euler` common, `milstein` another common, `KPS`, `milstein2`, `cdist` conditional distribution,`ozaki`,`shoji`,`EA` exact sampling
+
+If your function is not one of the ones done in `sde` you can create 2 expressions one for the drift and one for the variance OU process, $dXt = −5X_tdt + 3.5dW_t$
+
+```{r OU BY HAND}
+d <- expression(-5 * x)
+s <- expression(3.5)
+
+X <- sde.sim(X0=10,drift =d,sigma =s)
+
+quickplot(sde.sim(X0 = 10, drift = d, sigma = s, M = 100), title = "OU process user defined", show_legend = F)
+```
+
+CIR model $dXt = (6 − 3X_t)dt + 2\sqrt{X_t}dW_t$
+
+```{r CIR BY HAND}
+
+d <- expression(6 - 3 * x)
+s <- expression(2 * sqrt(x))
+X <- sde.sim(X0 = 10, drift = d, sigma = s)
+quickplot(X, title = "User-defined CIR")
+
+set.seed(123)
+X2 <- sde.sim(X0 =10, theta =c(6 ,3,2) , rcdist =rcCIR, method ="cdist", M = 1000)
+set.seed(123)
+X_many <- sde.sim(X0 =10, drift = d, sigma = s, M = 1000)
+
+
+X2_mean <- apply(X2, 1, mean)
+X_many_mean <- apply(X_many, 1, mean)
+check_acc(X2_mean, X_many_mean, title = "hand-made CIR and sde CIR across 1000 simulations")
+
+
+grid.arrange(ncol=2, top = "100 simulations of both models", 
+            X2[, 1:100] %>% 
+              quickplot(title = 'Using model = "CIR"', show_legend = F),
+            X_many[, 1:100] %>%  
+              quickplot(title = "Defining expressions",show_legend = F))
+
+```
+
+# Time series analysis
+
+`quantmod` is the industry standard of downloading financial data, the main provider is yahoo and uses the `xts` format which means that the data in actually indexed
+
+```{r quantmod get}
+#| layout-ncol: 2
+Sq <- getSymbols("AAPL", from = "2015-02-17", to = "2025-02-17", auto.assign = F)
+
+show_df(Sq, rounding = 2) %>% gt() %>% 
+  sub_missing(columns = everything(), missing_text = "⋮") %>% 
+  tab_header(title = "Apple dataset") %>%
+  opt_stylize(style = 5, add_row_striping = TRUE)
+
+cat("This data was downloadded from", attr(Sq, "src"),"\n")
+
+quickplot(Cl(Sq), title = "AAPL close price")
+chartSeries(Sq, TA = c(addVo(), addBBands()), theme = "white")
+```
+
+from the `tseries` package it allows you to download data from many providers most importantly FRED(federal reserve databank) kind of like `quantmod` which is the industry standard though fImport is pretty much the same
+
+```{r tseries get}
+S <- get.hist.quote("AAPL", start = "2010-01-01", end = "2022-01-01")
+chartSeries(S, TA=c(addVo(), addBBands()), theme="white")
+S <- S$Close
+```
+
+## Log-returns
+
+Stock prices aren't statistically significant, so you need to use log returns, you can use a variety of ways to get them in this case we are using properties of logarithms, whrere the division is made by takint the subsequent difference of the logarithms of stock prices `na.omit` simply skips the days where there are no data recorded, may that be due to technical issues or whatever else
+
+```{r logret}
+X <- diff(log(S))
+plot(X)
+head(X)
+X <- na.omit(X)
+```
+
+## Change-point analysis
+
+Volatility change-point estimator for diffusion processes based on least squares. in this case we can see that the price dynamics have changed during covid
+
+Change point detection is used to check for biased data
+
+```{r sde cpoint}
+cpoint(S)
+addVLine = function(dtlist) plot(addTA(xts(rep(TRUE,NROW(dtlist)),dtlist),on=1,col="red"))
+addVLine(cpoint(S)$tau0)
+
+## Log-returns with change-point line
+S <- as.numeric(S)
+n <- length(S)
+X <- log(S[-1]/S[-n])
+
+plot(X, type = "l", main = "Apple stock log-returns")
+abline(v = cpoint(X)$tau0, col = "red")
+```
+
+# Parameter estimation
+
+-   Maximum likelihood estimation (MLE): uses the entire density function
+
+-   Quasi-MLE (QMLE): uses a simplified version of the MLE
+
+-   Method of moments: uses a few moments
+
+## MLE maximum likelihood estimation
+
+You have some IID data points $x_1, x_2, \dots, x_n$ and you believe they come from a certain probability model with parameter $\theta$. The question is: **How likely is it that this data came from that model?**
+
+Since the data points are independent, the probability of seeing all of them together is just the product of their individual probabilities.
+
+**Likelihood of θ given the sample data**
+
+$$
+P_θ (X_1=x_1,X_2=x_2,…,X_n=x_n)\prod^n_{i=1}\big(p(x_i;θ)\big)
+$$
+
+In our basic case we want to estimate the log returns of a stock and approximate them to a normal distribution, to do this we need to figure out what are the best $\mu$ and $\sigma$ to maximize the likelyhood function to a PDF
+
+On top of that we use logs bc more convinent, derivative of products is hard and difficult as size increases. So we do $\text{Ln}(\Pi)$ so instead of multiplications you just take the sums and its a lot of derivatives summed
+
+```{r MLE}
+cbind(dnorm(-1000:1000/100, mean = 4, sd = 3) ,
+      dnorm(-1000:1000/100, mean = 2, sd = 3))%>% quickplot()+
+  geom_vline(aes(xintercept = 500))+
+  labs(title = "MLE", subtitle = "vertical line is the unkonwn mean of my data, values increase as mu decreases")
+
+cbind(dnorm(-400:400/100, mean = 1, sd = 1)) %>% quickplot()+
+  geom_hline(aes(yintercept = 0.1))+
+  geom_hline(aes(yintercept = 0.2))+
+  geom_hline(aes(yintercept = 0.3))+
+  geom_hline(aes(yintercept = 0.5), color = "red")+
+  geom_hline(aes(yintercept = max(dnorm(-400:400/100, mean = 1, sd = 1))), color = "green")+
+  labs(title = "iterative process of trying to find the highest value",
+       subtitle = "it keeps going until it overshoots and then comes back down")
+```
+
+lets say that the function is messier you need limits optim methods and starting values in order to not fall into a local maximum and not the global
+
+an advantage is that you are using all information available however it requires dist assumptions and closed form
+
+```{r}
+cbind(SMA(rnorm(801, sd = 20)/100, n = 50)+ dnorm(-400:400/100, mean = 0, sd = 1)) %>% 
+  quickplot(title = "Messier distribution with many obvious local maxima")
+```
+
+Now lets start with a function that we know the distribution assumption of $N (5,2)$
+
+using `stats4` package take the density function called whatever i want The mle function actually minimizes the negative log-likelihood $−ℓ(θ)$ as a function of the parameter $θ$ where $ℓ(θ) = log L(θ)$.
+
+solve this procedure numerically (/iteratively) instead of starting values wherever you can already give it some starting values of the process, give also an upper value and a lower value to narrow the search down
+
+-   `function(mu = NUM, sigma = NUM)` these are the starting values, if you have an idea of where the parameters of the density is
+
+-   `lower = c(0, 0) , upper = c(Inf, Inf)` set limits for the estimation, its not much use if the correct values are outside the boundaries but its way too much calculations if the boundaries are too large
+
+-   `method = c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B", "SANN", "Brent")` choose the correct method of optimization
+
+`L-BFGS-B` non linear optimization methods, picking different combinations of mu and sigma to solve the likelyhood function methods are algorithms which tell R which combinations to use to calculate the log likelyhood, there isnt one best method, so depending on the shape of the distributional assumptions mle is based on `optim` which has 6 optimization functions in it
+
+-   Nelder-Mead
+
+-   BFGS
+
+-   CG
+
+-   L-BFGS-B
+
+-   SANN
+
+-   Brent
+
+```{r MLE estimation}
+# using the mle function
+xnorm <- rnorm(1000, mean = 6, sd = 2)
+
+
+log.lik <- function(mu = 2, sigma = 2) { # Choose good starting values
+  -sum(dnorm(xnorm, mean = mu, sd = sigma, log = TRUE))
+} 
+
+fit <- mle(log.lik, lower = c(0, 0) , upper = c(Inf, Inf),  method = "L-BFGS-B")
+summary(fit)
+
+logLik(fit)
+# log.lik(coef(fit)[1], sigma = coef(fit)[2])
+
+confint(fit)
+
+check_acc(data1 = sort(xnorm), 
+          data2 = sort(rnorm(1000, mean = coef(fit)[1], coef(fit)[2])),
+          title = "Sorted values to confront distributional assumptions")
+
+data.frame(LR_sort = xnorm,
+           MLE = rnorm(1000, mean = coef(fit)[1], coef(fit)[2])) %>%
+  ggplot() +
+  geom_histogram(aes(x = LR_sort, fill = "Log returns"), alpha = 0.8, bins = 80) +
+  geom_histogram(aes(x = MLE, fill = "MLE"), alpha = 0.8, bins = 80) +
+  labs(title = "Distribution charts of our real data and the one that we", x = NULL) +
+  scale_fill_manual(name = NULL, values = c("Log returns" = "indianred3", MLE = "lightblue")) +
+  theme(legend.position = "bottom")
+```
+
+MLE fails bc the stock doesnt follow the GbM may be used with correlated regressors and data
+
+```{r Using stock data}
+# Delta <- 0.01         #FROM BEFORE          #	time step of the simulation
+
+x <- na.omit(diff(log(S)))
+LR_S <- x
+
+est.log.lik <- function(mu = 0, sigma = 1) {
+  -sum(dnorm(x, 
+             mean = (mu-0.5*sigma^2)*Delta, 
+             sd = sigma*sqrt(Delta), 
+             log = TRUE))
+  }
+
+fit <- mle(est.log.lik, method = "Nelder-Mead", lower = c(0.2,0), upper = c(1,10))
+
+summary(fit)
+
+logLik(fit)
+# log.lik(coef(fit)[1], sigma = coef(fit)[2])
+
+confint(fit)
+
+check_acc(data1 = sort(as.numeric(x)), 
+          data2 = sort(rnorm(length(x), mean = coef(fit)[1], coef(fit)[2])), 
+          title = "Sorted values to confront distributional assumptions")
+
+  
+  data.frame(LR_sort = sort(xnorm),
+           MLE = sort(rnorm(1000, mean = coef(fit)[1], sd = coef(fit)[2]))) %>%
+  ggplot() +
+  geom_histogram(aes(x = LR_sort, fill = "Log returns"), alpha = 0.8, bins = 80) +
+  geom_histogram(aes(x = MLE, fill = "MLE"), alpha = 0.8, bins = 80) +
+  labs(title = "Distribution charts of our real data and the one that we", x = NULL) +
+  scale_fill_manual(name = NULL, values = c("Log returns" = "indianred3", MLE = "lightblue")) +
+  theme(legend.position = "bottom")
+```
+
+MLE Assumes we know the exact distribution of the data.
+
+## Quasi-MLE quasi-maximum likelihood estimation
+
+Allows for the possibility that the model might not be fully correct. It maximizes a simplified log-likelihood function instead.
+
+Even though QMLE may not be as efficient as MLE (because it might lose some information), it still gives consistent and asymptotically normal estimates, meaning that as the sample size grows, the estimates become reliable.
+
+-   Similar to MLE but allows for possible model misspecification.
+
+-   Uses a simpler version of the likelihood function (called a quasi-likelihood function).
+
+-   Still gives consistent and asymptotically normal estimates, but they may be slightly less efficient than MLE.
+
+$dX_t = −θ_2X_tdt + θ_1dW_t$
+
+```{r QMLE}
+##  because the true model is not gBm
+ymodel <- setModel(drift ="mu*x", diffusion = "sigma*x")
+
+yuima <- setYuima(model = ymodel, 
+                  data = setData(S), 
+                  sampling = setSampling(delta = Delta, n = length(S)))
+
+qmle <- qmle(yuima, 
+             start = list(mu = 0.5, sigma = 0.2), 
+             lower = list(mu = 0.05, sigma = 0.05), 
+             upper = list(mu = 0.7, sigma = 0.5), 
+             method = "L-BFGS-B")
+
+summary(qmle)
+
+logLik(qmle)
+# log.lik(coef(qmle)[1], sigma = coef(qmle)[2])
+
+check_acc(data1 = sort(as.numeric(LR_S)), 
+          data2 = sort(rnorm(length(LR_S), mean = coef(qmle)[1], coef(qmle)[2])), 
+          title = "Sorted values to confront distributional assumptions")
+
+data.frame(LR_sort = sort(as.numeric(LR_S)),
+           MLE = sort(rnorm(length(LR_S), mean = coef(qmle)[1], coef(qmle)[2]))) %>%
+  ggplot() +
+  geom_histogram(aes(x = LR_sort, fill = "Log returns"), alpha = 0.8, bins = 80) +
+  geom_histogram(aes(x = MLE, fill = "MLE"), alpha = 0.8, bins = 80) +
+  labs(title = "Distribution charts of our real data and the one that we", x = NULL) +
+  scale_fill_manual(name = NULL, values = c("Log returns" = "indianred3", MLE = "lightblue")) +
+  theme(legend.position = "bottom")
+```
+
+Using `cpoint` I was able to find the change during the covid pandemic and im using data from the change-point onwards Visual test of fitting analysis Density plot and QQ-plot the tails are different meaning that the returns dont follow a normal distribution function also AIC and we will see it later and a numerical value is a better option if you are not able to do parameter estiamtion using `MLE` you cant get the log-likelyhood and the AIC
+
+$$AIC = −2l_n(\hatθ^{(ML)}_n)+ 2dim(\Theta)$$
+
+its a tug of war btw the performance of the model and the number of parameter preventing overfitting by having just enough parameters and avoiding the unnecessary ones you can have a good fit by having a lot of parameters and
+
+```{r Density plot and QQ-plot}
+#| layout-ncol: 2
+
+S <- Cl(getSymbols("AAPL", from = "2020-01-24", to = "2022-01-01", auto.assign = F))
+X <- na.omit(diff(log(S)))
+
+gghistogram(X, add.normal = T)
+plot(density(X), lwd=2, main="Apple stock Density Plot")
+f <- function(u) dnorm(u, mean=mean(X), sd=sd(X))
+curve( f, -0.1, 0.1, add=TRUE, col="red",lwd=2)
+
+
+gg_qq_plot(as.numeric(X), title = "APPLE Stock")
+
+qqnorm(X, main = "Apple stock QQ plot")
+qqline(X, col="red",lwd=2)
+```
+
+## Method of moments
+
+1.  $µ$ is the real mean $E(X)$
+2.  $σ$ is the real variance $Var(X)$
+3.  $X$ is the sample mean
+4.  $S^2$ is the sample variance
+
+mle needs closed form, so if there is no closed form solution so for distributions that are too convoluted you need method of moments
+
+an advantage that can always be calculated however its not accurate
+
+when the parameters match with the 2 moments you can just calculate them basically as is, however in more complex distributions where this is not the case you need more complex processes Like with LEVY processes, with jump component, it has also a stochastic drift + jump component
+
+```{mermaid}
+flowchart LR
+  A(MLE) --> B(QMLE) --> C(MoM)
+```
+
+Computing the sample moments $$
+  \begin{cases}
+    E(X) = \frac\alpha\beta\\
+    Var(X) = \frac\alpha{\beta^2}  
+  \end{cases}
+$$
+
+$$
+α = \frac{[E(X)]^2}{Var (X)} 
+\ \ \ \text{and} \ \ \ 
+β =\frac{E(X)}{Var(X)}
+$$
+
+$$\alpha = \beta = \mu = \sigma =$$
+
+```{r MoM}
+# Mean, Variance:
+x <- mean(as.numeric(LR_S))
+y <- var(as.numeric(LR_S))
+data.frame(Ex = x, VarX = y)
+
+##### finding the Gamma distribution parameters via Method of Moments
+alpha <- x^2 / y
+beta <- x / y
+data.frame(alpha, beta)
+
+## Estimation of the historical mean and volatility of the GBM via Method of Moments
+Delta <- 1 / 252
+alpha.hat <- mean(LR_S, na.rm = TRUE) / Delta
+sigma.hat <- sqrt(var(LR_S, na.rm = TRUE) / Delta)
+mu.hat <- alpha.hat + 0.5 * sigma.hat^2
+
+data.frame(
+  sigma.hat  = as.numeric(sigma.hat),
+  mu.hat = as.numeric(mu.hat))
+
+check_acc(data1 = sort(as.numeric(LR_S)), 
+          data2 = sort(rnorm(length(LR_S), mean = mu.hat, sd = sigma.hat)), 
+          title = "Sorted values to confront distributional assumptions")
+
+data.frame(LR_sort = sort(as.numeric(LR_S)),
+           MLE = sort(rnorm(length(LR_S), mean = coef(fit)[1], coef(fit)[2]))) %>%
+  ggplot() +
+  geom_histogram(aes(x = LR_sort, fill = "Log returns"), alpha = 0.8, bins = 80) +
+  geom_histogram(aes(x = MLE, fill = "MLE"), alpha = 0.8, bins = 80) +
+  labs(title = "Distribution charts of our real data and the one that we", x = NULL) +
+  scale_fill_manual(name = NULL, values = c("Log returns" = "indianred3", MLE = "lightblue")) +
+  theme(legend.position = "bottom")
+```
+
+# European options
+
+## risk neutralization
+
+Starting from the concept of risk neutrality with all instruments and all values being priced in the same way in order to not have an advantage based on the positions taken using $Q$ like in $E_Q$ to say that you are in the risk neutral risk space
+
+starting from the risk neutral call price you can get back the risk neutral stock price path calculation
+
+like with the martingale property of markovian processes $E(X_{n+1}|X_1, ..., X_n) = X_n \rightarrow S_0 = e^{-rT}E_Q[S_T]$ with the discounted process being a martingale process
+
+**This theorem where the discounted price process needs to be amartingale is called the Girsanov theorem** (named after Igor Vladimirovich Girsanov)
+
+From B&S we seen that it starts from the SDE (slide 20 stoch processes) to a closed solution in the process you get rid of $\mu$ to $r$ as part of the risk neutralization procedures
+
+$$S_0 = e^{-rT}E_Q[S_T] = S_0 = e^{-rt} *S_0 EXP\{ \mu d_T +\sigma dW_T \}$$ This sde is not a martingale bc there is a drift component if $\mu \neq 0$
+
+To risk-neutralise a GbM we can just keep $σ$, but substitute the parameter $µ$ with the risk-free rate $r$, therefore the risk-neutral parameters are $(r, σ)$
+
+substitute $\mu$ with the riskfree rate $r$
+
+Meaning that black and scholes follows the Girsanov property
+
+### risk neutralization methods
+
+There isnt a best one, you need to try them and check them witht the market prices
+
+Some of the easiest are the mean correcting martingale and the Esscher transformation
+
+#### Esscher trasnformation
+
+A priori risk neutralization method of getting the phisical parameteres and insert them in a specific formula
+
+$$f_θ(x) =\frac{exp(θx)f(x)}{\int_R exp(θx)f(x)dx}$$
+
+f(x) is our assumption then the expectations of x multyplied by $\theta$ trying a bunch of potential theta to make sure that the girsanov theorem is fufilled
+
+#### mean correcting martingale
+
+a posteriori risk neutralization method estimate the parameters and simulate the matrix of simulations using the phisical values, then put the matrix into the funky formula $$S^{RN}_{M,M}= S0 \ exp(SM,N) \frac{exp(rt)}{E[exp(S_{,N+1})]}$$
+
+matrix of simulation with `sde.sim` at the numerator times(/divided) S_0 and $e^{rt}$ divided by the same matrix's expectations for every time point (/line in the matrix) by using the mean, creating a vector of N+1 elements
+
+```{r IDK_MCM}
+# Parameters
+S0 <- 100      # Initial stock price
+mu <- 0.05     # Drift
+sigma <- 0.2   # Volatility
+Time <- 1         # Time horizon (years)
+n <- 252       # Number of time steps
+M <- 100      # Number of simulated paths
+r <- 0.03      # Risk-free rate
+
+# Simulate paths using sde.sim
+S_paths <- sde.sim(X0 = S0, model = "BS", theta =c(mu, sigma), T = Time, N = n, M = M)
+
+# Compute expectation under risk-neutral measure
+E_S_N1 <- apply(S_paths, 1, mean)  # Mean of exponentiated paths at each time step
+
+# Apply Mean-Correcting Martingale (MCM) formula
+S_RN_MCM <- S0 * S_paths * exp(r * (1:N) * (Time/N)) / E_S_N1
+
+grid.arrange(top = paste("Simulated Stock Price Paths before and after MCM\n Showing", min(30, M), "simulations"), ncol =2, 
+quickplot(S_paths[,1:min(30, M)], show_legend = F, title = "BEFORE"),
+quickplot(S_RN_MCM[,1:min(30, M)], show_legend = F, title = " AFTER", ylab = NULL))
+
+
+# Plot the original GBM paths vs. the Mean-Correcting Martingale
+ggplot() +
+  geom_line(data = melt(S_paths[,1:min(30, M)]), aes(x = Var1, y = value, color = "GBM Paths", group = Var2),
+            linewidth = 1) +
+  geom_line(data = melt(S_RN_MCM[,1:min(30, M)]), aes(x = Var1, y = value, color = "MCM Paths", group = Var2),
+            linewidth = 1) +
+  labs(title = "Stock Price Paths vs. Mean-Correcting Martingale Adjusted Paths", 
+       subtitle = paste("Showing", min(30, M), "simulations"),
+       x = "Time (Days)", y = "Stock Price") +
+  scale_color_manual(values = c("#131cce", "red")) +
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+
+grid.arrange(top = "Boxplot to compare how the distribution changes across time steps", ncol=2,
+melt(data.frame(t(as.data.frame(S_paths)))) %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = "#131cce", color = "navyblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Before", x = NULL, y = NULL)+
+    theme(
+    axis.text.x = element_blank(),
+    panel.grid.minor.x = element_blank(),  # Remove minor x-axis grid lines
+    panel.grid.major.x = element_blank())  # Keep major x-axis grid lines
+,
+
+melt(data.frame(t(as.data.frame(S_RN_MCM)))) %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = "red", color = "darkred") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "After", x = NULL, y = NULL) +
+  theme(
+    axis.text.x = element_blank(),
+    panel.grid.minor.x = element_blank(),  # Remove minor x-axis grid lines
+    panel.grid.major.x = element_blank()  # Keep major x-axis grid lines
+  )
+)
+```
+
+## B&S pricing
+
+No need for boundary conditions in the case of a plain vanilla option
+
+```{r BS pricing}
+# CALL formula
+call.price <- function(x = 1, Time = 0, T_mat = 1, r = 1, sigma = 1, K = 1) {
+  d2 <- (log(x / K) + (r - 0.5 * sigma^2) * (T_mat - Time)) / (sigma * sqrt(T_mat - Time))
+  d1 <- d2 + sigma * sqrt(T_mat - Time)
+  price <- x * pnorm(d1) - K * exp(-r * (T_mat - Time)) * pnorm(d2)
+  return(price)
+}
+
+# PUT formula
+put.price <- function(x = 1, Time = 0, T_mat = 1, r = 1, sigma = 1, K = 1) {
+  d2 <- (log(x / K) + (r - 0.5 * sigma^2) * (T_mat - Time)) / (sigma * sqrt(T_mat - Time))
+  d1 <- d2 + sigma * sqrt(T_mat - Time)
+  price <- K * exp(-r * (T_mat - Time)) * pnorm(-d2) - x * pnorm(-d1)
+  return(price)
+}
+
+# Example
+S0 <- 100
+K <- 110
+r <- 0.05
+Time <- 1/4
+sigma <- 0.25
+C <- call.price(x = S0, Time = 0, T_mat = Time, r = r, K = K, sigma = sigma)
+cat("Call price according to Black and Scholes", C, "\n")
+
+P <- put.price(x = S0, Time = 0, T_mat = Time, r = r, K = K, sigma = sigma)
+cat("Put price according to Black and Scholes", P, "\n")
+
+
+# Put-Call parity
+P2 <- C - S0 + K * exp(-r * Time)
+cat("Put price according to Put call parity", P2, "\n")
+```
+
+## Montecarlo Pricing
+
+Your MCPrice function is implementing Monte Carlo pricing for European-style options using antithetic variates to reduce variance. Specifically, it prices a European call or put option based on the payoff function `f(x)`, where `x` represents the final stock price at maturity.
+
+**Stock Price Simulation:** It simulates terminal stock prices under the Black-Scholes model $$S_T=S_0 \cdot EXP\left\{(r− \frac12 σ^2)(T−t)+σ\sqrt{T−t}Z\right\} $$ It also generates antithetic variates (i.e., both $u$ and $-u$), which improves efficiency by reducing variance
+
+**Payoff Computation** The function `f(xx)` represents the option payoff, meaning you can define different options: For a European call option: `f <- function(x) max(0, x - K)` For a European put option: `f <- function(x) max(0, K - x)`
+
+**Discounting the Expected Payoff:** The expected payoff is discounted using the risk-free rate $e^{−r(T−t)}$
+
+```{r Monte Carlo pricing}
+MCPrice <- function(x = 1, Time = 0, T_mat= 1, r = 1, sigma = 1, M = 1000, f) {
+     h <- function(m) {
+         u <- rnorm(m/2)
+         tmp <- c(x * exp((r - 0.5 * sigma^2) * (T_mat - Time) + sigma * sqrt(T_mat - Time) * u),
+                  x * exp((r - 0.5 * sigma^2) * (T_mat - Time) + sigma * sqrt(T_mat - Time) * (-u)))
+         
+         mean(sapply(tmp, function(xx) f(xx)))
+     }
+     p <- h(M)
+     p * exp(-r * (T_mat - Time))
+}
+# Example
+f <- function(x) max(0, x - K)
+
+
+M <- 1000
+MC1 <- MCPrice(x = S0, Time = 0, T_mat = Time, r = r, sigma, M = M, f = f)
+cat("Call price according to Monte Carlo", MC1, "after", M, "simulations, and with a diffference of", MC1-C, "\n")
+
+
+M <- 50000
+MC2 <- MCPrice(x = S0, Time = 0, T_mat = Time, r = r, sigma, M = M, f = f)
+cat("Call price according to Monte Carlo", MC2, "after", M, "simulations, and with a diffference of", MC2-C, "\n")
+
+
+M <- 1e+06
+MC3 <- MCPrice(x = S0, Time = 0, T_mat = Time, r = r, sigma, M = M, f = f)
+cat("Call price according to Monte Carlo", MC3, "after", M, "simulations, and with a diffference of", MC3-C, "\n")
+
+# Speed of convergence
+m <- c(10, 50, 100, 150, 200, 250, 500, 1000)
+p1 <- NULL
+err <- NULL
+nM <- length(m)
+repl <- 100
+mat <- matrix(, repl, nM)
+for (k in 1:nM) {
+  tmp <- numeric(repl)
+  for (i in 1:repl) {
+    tmp[i] <- MCPrice(x = S0, Time = 0, T_mat = Time, r = r, sigma, M = m[k], f = f)
+  }
+  mat[, k] <- tmp
+  p1 <- c(p1, mean(tmp))
+  err <- c(err, sd(tmp))
+}
+colnames(mat) <- m
+mat %>% round(5) %>%  datatable()
+```
+
+```{r show mc}
+#| layout-ncol: 2
+
+p0 <- C
+minP <- min(p1 - err)
+maxP <- max(p1 + err)
+plot(m, p1, type = "n", ylim = c(minP, maxP), axes = F, ylab = "MC price",  xlab = "MC replications")
+lines(m, p1 + err, col = "blue")
+lines(m, p1 - err, col = "blue")
+axis(2, p0, "B&S price")
+axis(1, m)
+boxplot(mat, add = TRUE, at = m, boxwex = 15, col = "orange",  axes = F)
+points(m, p1, col = "blue", lwd = 3, lty = 3)
+abline(h = p0, lty = 2, col = "red", lwd = 3)
+
+# Setup the plot
+plot(m, p1, type = "n", ylim = c(minP, maxP), axes = FALSE, 
+     ylab = "MC price", xlab = "MC replications", main = "Monte Carlo Option Pricing")
+
+# Confidence intervals
+lines(m, p1 + err, col = "blue", lwd = 2)
+lines(m, p1 - err, col = "blue", lwd = 2)
+
+# Add axes with better formatting
+axis(2, at = seq(minP, maxP, length.out = 5), las = 1, cex.axis = 1.2)
+axis(1, at = m, labels = m, cex.axis = 1.2)
+
+# Boxplots for distribution at each replication step
+boxplot(mat, add = TRUE, at = m, boxwex = 10, col = rgb(1, 0.5, 0, 0.5), axes = FALSE, outline = FALSE)
+
+# Mean estimates
+points(m, p1, col = "blue", pch = 19, cex = 1.2)
+
+# Black-Scholes price reference line
+abline(h = p0, lty = 2, col = "red", lwd = 3)
+
+# Add grid for readability
+grid()
+
+# Add legend
+legend("topright", legend = c("MC estimate", "B&S price", "MC Confidence Interval"),
+       col = c("blue", "red", "blue"), lty = c(NA, 2, 1), pch = c(19, NA, NA),
+       lwd = c(2, 3, 2), bg = "white")
+```
+
+## FFT pricing
+
+moment generating function with a complex number $i=\sqrt{-1}$ From the density function the FFT adjusts from the real domain to the immaginary domain and then using the inverse transform of this function and get the oppposite value to the real domain $$φ(t) = E\{e^{itX} \}$$ this because the density function may not exist or may not be able to be shown in a closed formula (like with multi-asset pricing) may not be able to be shown or be too complex to show (and simulations become way to computationally expensive) work with the characteristic function and get to the domain
+
+there are some analytical properties and makes it possible to use some analytical properties and retrieve the assumptions
+
+for example a normal is Normal $N(μ, σ^2) \rightarrow {\displaystyle e^{it\mu -{\frac {1}{2}}\sigma ^{2}t^{2}}}$
+
+dampening factor is also implemented to converge faster to the solution $\mu$
+
+```{r FFT method}
+FFTcall.price <- function(phi, S0, K, r, Time, alpha = 1, N = 2^12, eta = 0.25) {
+  m <- r - log(phi(-(0 + 1i)))
+  phi.tilde <- function(u) (phi(u) * exp((0 + 1i) * u * m))^Time
+  psi <- function(v) {
+    exp(-r * Time) * phi.tilde((v - (alpha + 1) * (0 + 1i))) /
+      (alpha^2 + alpha - v^2 + (0 + 1i) * (2 * alpha + 1) * v)
+  }
+  lambda <- (2 * pi) / (N * eta)
+  b <- 1 / 2 * N * lambda
+  ku <- -b + lambda * (0:(N - 1))
+  v <- eta * (0:(N - 1))
+  tmp <- exp((0 + 1i) * b * v) * psi(v) * eta * (3 + (-1)^(1:N) - ((1:N) - 1 == 0)) / 3
+  ft <- fft(tmp)
+  res <- exp(-alpha * ku) * ft / pi
+  inter <- spline(ku, Re(res), xout = log(K / S0))
+  return(inter$y * S0)
+} 
+
+
+phiBS <- function(u) exp((0+1i) * u * (mu - 0.5 * sigma^2) - 0.5 * sigma^2 * u^2)
+
+mu <- 1
+
+FFT <- FFTcall.price(phiBS, S0 = S0, K = K, r = r, Time = Time)
+
+cat("Call price according to Monte Carlo", FFT, "with a diffference of", FFT-C, "\n")
+```
+
+## Other stochastic processes simulations
+
+```{r}
+####### SIMULATION #######
+
+### GMB
+
+### VG
+
+### MEIXNER
+
+### MERTON
+
+### CKLS
+
+### CIR
+
+### CEV
+
+start <- as.Date("2020-01-24") #<- cpoint(S) 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+S <- MSFT$MSFT.Close            #Preferisco usa il prezzo di chiusura
+X <- diff(log(S))
+X <- na.omit(X)
+
+S0 <- as.numeric(S[427,1])
+S0 <- 289.10
+N <- 10 #number of time steps for each path.       ->Example
+Delta <- Time/N #time mesh (Time/N)
+nsim <- 10
+Time <- 1 #option time to maturity N*Delta
+r <- 0.008821133
+q <- 0.00 #Dividend yield
+
+```
+
+### GBM - Parameter Estimation
+
+```{r}
+##historical volatility
+Delta <- 1/252
+alpha.hat <- mean(X, na.rm=TRUE)/Delta
+sigma.hat <- sqrt(var(X, na.rm=TRUE)/Delta)
+mu.hat <- alpha.hat + 0.5*sigma.hat^2
+alpha.hat
+sigma.hat
+mu.hat
+
+###### GBM - Simulation ######
+#BM
+#Simulation of 1 path
+nsim <- 10
+N <- 100
+dt=Time/N
+
+BM <- matrix(nrow = nsim, ncol = N)
+
+for (i in 1:nsim) {
+  z <- rnorm(N, mean = 0, sd = sqrt(dt)) 
+  BM[i, ] <- cumsum(z)
+}
+BM<-cbind((matrix(0, nrow=nsim, ncol=1)),BM)
+BM %>% t () %>%
+  quickplot(facet_wrap = F)
+colori=viridis(nsim)
+plot(BM[1,], col=0, type="l", ylim = c(min(BM[1,]),max(BM[1,])), #plot the Monte Carlo Simulation
+     main = "MC Simlation for BM", sub = "100 steps, 1 paths", 
+     xlab = "Time", ylab = "BM Process")
+lines(BM[1,], col=colori[1], lwd = 2)
+
+GBM_paths<-matrix(nrow = nsim, ncol=N+1)
+
+for(i in 1:nsim){
+  GBM_paths[i,]<-sde.sim(X0=S0, N=N, delta=Delta, model="BS", theta=c(mu.hat, sigma.hat))
+}
+GBM_paths %>% round(3) %>% datatable()
+
+GBM_paths %>% quickplot()
+
+
+GBM_paths<-matrix(NA, nrow=nsim, ncol=N) #alternative simulation
+for (i in 1:nsim) { # Crea un GBM[n,m]
+  GBM_paths[i, ] <- S0 * exp(cumsum(((r - q) * (Time / N) - 0.5 * sigma.hat * sigma.hat * (Time / N)) + (sigma.hat * (sqrt(Time / N)) * rnorm(N, mean = 0, sd = 1))))
+}
+
+GBM_paths<-cbind((matrix(S0, nrow=nsim, ncol=1)),GBM_paths)
+GBM_paths %>% round(3) %>% datatable()
+
+plot(GBM_paths[1,])
+
+colori=viridis(nsim)
+plot(GBM_paths[1,], col=0, type="l", ylim = c(min(GBM_paths),max(GBM_paths)), 
+     main = "MC Simlation for GBM stock prices", sub = "3 steps, 10 paths", 
+     xlab = "Time", ylab = "MSFT")
+for(i in 2:nsim){
+  lines(GBM_paths[i,], col=colori[i], lwd = 2);
+}
+
+```
+
+```{r}
+###### VG - Parameter Estimation ######
+
+##VG parameter estimation with MLE
+vgFit(l_ret)    
+str(vgFit(l_ret))
+vg_param <- vgFit(l_ret)$param
+vg_param
+
+c <- as.numeric(vg_param[1])
+sigma <- as.numeric(vg_param[2])
+theta <- as.numeric(vg_param[3])
+nu <- as.numeric(vg_param[4])
+
+###### VG - Simulation ######
+#VG Process
+sigma <- 0.04
+theta <- 0.0006
+nu <- 2.5
+#Simulation of 1 path
+nsim <- 10
+N <- 100
+
+a=1/nu  
+b=1/nu 
+h=Time/N
+Time=(0:N)*Time/N
+X=rep(0, N+1) #Check!X=rep(0,Time+1)
+I=rep(0,N) 
+X[1]=0 
+
+VGexp_paths<-matrix(nrow = nsim, ncol=N)
+
+for(i in 1:nsim){
+  for (j in 1:N) {
+    I[j]=rgamma(1,a*h,b) 
+    X[j+1]=X[j] + theta*I[j]+sigma*sqrt(I[j])*rnorm(1)#*exp((r-q)*h) ###Here I added the dividend yield q
+    VGexp_paths[i,j]<-X[j+1]
+  }
+}
+VGexp_paths<-cbind((matrix(0, nrow=nsim, ncol=1)),VGexp_paths)
+VGexp_paths %>% round(3) %>% datatable()
+
+colori=viridis(10)
+plot(VGexp_paths[1,], col=0, type="l", ylim = c(min(VGexp_paths[1,]),max(VGexp_paths[1,])), #plot the Monte Carlo Simulation
+     main = "MC Simlation for VG", sub = "100 steps, 1 paths", 
+     xlab = "Time", ylab = "VG Process")
+lines(VGexp_paths[1,], col=colori[5], lwd = 2)
+
+#Exponential VG Process
+VGexp=function(sigma, nu, theta, Time, N, r, S0) { 
+  a=1/nu 
+  b=1/nu 
+  h=Time/N
+  Time=(0:N)*Time/N 
+  X=rep(0, N+1) 
+  I=rep(0,N) 
+  X[1]=S0 
+  for(i in 1:N) { 
+    I[i]=rgamma(1,a*h,b) 
+    X[i+1]=X[i]*exp(r*Time+theta*I[i]+sigma*sqrt(I[i])*rnorm(1))
+  }
+  return(X)}
+VGexp(sigma, nu, theta, Time, N, r, S0)
+
+
+VGexp_paths<-matrix(nrow = nsim, ncol=N+1)
+for(i in 1:nsim){
+  VGexp_paths[i,]<-VGexp(sigma, nu, theta, Time, N, r, S0)
+}
+VGexp_paths
+
+a=1/nu  #alternative code 
+b=1/nu 
+h=Time/N
+Time=(0:N)*Time/N
+X=rep(0, N+1) #Check!X=rep(0,Time+1)
+I=rep(0,TRUE)
+X[1]=S0 
+
+VGexp_paths<-matrix(nrow = nsim, ncol=N)
+
+for(i in 1:nsim){
+  for (j in 1:N) {
+    I[j]=rgamma(1,a*h,b) 
+    X[j+1]=X[j]*exp(theta*I[j]+sigma*sqrt(I[j])*rnorm(1))#*exp((r-q)*h) ###Here I added the dividend yield q
+    VGexp_paths[i,j]<-X[j+1]
+  }
+}
+
+VGexp_paths<-cbind((matrix(S0, nrow=nsim, ncol=1)),VGexp_paths)
+VGexp_paths %>% t() %>% quickplot(facet_wrap = F)
+colori=viridis(nsim)
+plot(VGexp_paths[1,], col=0, type="l", ylim = c(min(VGexp_paths),max(VGexp_paths)), #plot the Monte Carlo Simulation
+     main = "MC Simlation for VG stock prices", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "STLA")
+for(i in 2:nsim){
+  lines(VGexp_paths[i,], col=colori[i], lwd = 2);
+}
+```
+
+### Meixner - Parameter Estimation
+
+```{r}
+##Meixner parameter estimation with Method of Moment
+x <-mean(l_ret, na.rm = TRUE)
+y <-sd(l_ret, na.rm = TRUE)
+z <-as.numeric(skewness(l_ret, na.rm = TRUE))
+w <-as.numeric(kurtosis(l_ret, na.rm = TRUE))
+
+m <- x-((z*sqrt(y))/(w-(z^2)-3)) 
+a <- sqrt(y*(2*w-3*(z^2)-6)) 
+b <- 2*atan(-sqrt((z^2)/(2*w-3*(z^2)-6))) 
+d <- 1/(w-(z^2)-3)
+
+###### Meixner - Simulation ######
+#Meixner Process
+m <- 0.012
+a <- 0.53
+b <- -0.25
+d <- 0.16
+#Simulation of 1 path
+nsim <- 10
+N <- 100
+
+MXexp_paths<-matrix(NA, nrow = nsim, ncol=N) #alternative code
+h=Time/N 
+Time=(0:N)*Time/N
+X=rep(0,N+1) 
+X[1]=0
+
+for(i in 1:nsim){
+  distr <- udmeixner(a, b, d, m) #meiner distribution
+  gen <- pinvd.new(distr) #Polynomial interpolation of INVerse CDF
+  rdmMXgen <- ur(gen,N) #randomly draws N objects from gen (from a Meixner distr)
+  for (j in 1:N) {
+    X[i+j]=X[j]+rdmMXgen[j]
+    MXexp_paths[i,j]<-X[j+1]
+  }
+}
+
+MXexp_paths<-cbind((matrix(0, nrow=nsim, ncol=1)),MXexp_paths)
+colori=viridis(20)
+plot(MXexp_paths[1,], col=0, type="l", ylim = c(min(MXexp_paths[1,]),max(MXexp_paths[1,])), #plot the Monte Carlo Simulation
+     main = "MC Simlation for Meixner", sub = "100 steps, 1 paths", 
+     xlab = "Time", ylab = "Meixner Process")
+lines(MXexp_paths[1,], col=colori[8], lwd = 2)
+
+#Exponential Meixner Process
+MXexp=function(a, b, d, m, N, Time, r, S0) {
+  distr <- udmeixner(a, b, d, m) #meiner distribution
+  gen <- pinvd.new(distr) #Polynomial interpolation of INVerse CDF
+  generazioni <- ur(gen,N) #randomly draws N objects from gen (from a Meixner distr)
+  h=Time/N
+  Time=(0:N)*Time/N
+  X=rep(0,N+1)
+  X[1]=S0
+  for (i in 1:N){
+    X[i+1]=X[i]*exp(r*Time+generazioni[i])
+  }
+  return(X)
+}
+MXexp(a, b, d, m, N, Time, r, S0)
+
+
+MXexp_paths<-matrix(nrow = nsim, ncol=N+1)
+for(i in 1:nsim){
+  MXexp_paths[i,]<-MXexp(a, b, d, m, N, Time, r, S0)
+}
+MXexp_paths %>% t() %>% head
+
+MXexp_paths<-matrix(NA, nrow = nsim, ncol=N) #alternative code
+h=Time/N 
+Time=(0:N)*Time/N
+X=rep(0,N+1) 
+X[1]=S0
+for(i in 1:nsim){
+  distr <- udmeixner(a, b, d, m) #meiner distribution
+  gen <- pinvd.new(distr) #Polynomial interpolation of INVerse CDF
+  generazioni <- ur(gen,N) #randomly draws N objects from gen (from a Meixner distr)
+  for (j in 1:N) {
+    X[j+1]=X[j]*exp(r*Time+generazioni[j])
+    MXexp_paths[i,j]<-X[j+1]
+  }
+}
+
+MXexp_paths<-cbind((matrix(S0, nrow=nsim, ncol=1)),MXexp_paths)
+MXexp_paths %>% t() %>% head
+
+colori=viridis(nsim)
+plot(MXexp_paths[1,], col=0, type="l", ylim = c(min(MXexp_paths),max(MXexp_paths)), 
+     main = "Monte Carlo Simulation for Meixner returns", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "MXNR returns")
+for(i in 2:nsim){
+  lines(MXexp_paths[i,], col=colori[i], lwd = 2);
+}
+```
+
+### MERTON - Parameter Estimation
+
+```{r}
+Delta<-1/252 
+
+ret <- setYuima(data=setData(adj_close))
+dat <- as.vector(coredata(ret@data@original.data))
+a.hat <- var(diff(log(dat)))/Delta
+a.hat <- var(diff(log(dat)))/Delta
+b.hat <- mean(diff(log(dat)))/Delta + 0.5*a.hat
+mer <- setModel(drift="mu*x",diffusion="sigma*x",jump.coeff="1", measure=list(intensity="lambda", df=list("dnorm(z, beta, dels )")),measure.type="CP", solve.variable="x")
+yuimaMer <- setYuima(model=mer, data=ret@data)
+
+lower<-list(mu=0.00001, sigma=0.01, lambda=0.001, beta=0.0001, dels =0.1)
+upper<-list(mu=1, sigma=100,lambda=25, beta=50, dels =50)
+start<-list(mu=b.hat, sigma=a.hat, lambda=5, beta=1, dels =2)
+outMer <- qmle (yuimaMer, start=start, upper=upper, lower=lower, threshold = 2.5, method="L-BFGS-B")
+summary(outMer)
+resultCev <- outMer@coef
+MertonParam <- t(outMer@coef)
+MertonParam
+
+sigma <- as.numeric(MertonParam[1])
+mu <- as.numeric(MertonParam[2])
+lambda <- as.numeric(MertonParam[3])
+beta <- as.numeric(MertonParam[4])
+dels <- as.numeric(MertonParam[5])
+
+###### Merton - Simulation ######
+#Simulation of 1 path
+nsim <- 10
+N <- 100
+Time <- 1
+S0 <- 1 #(?)
+
+Merton_paths<-matrix(nrow = nsim, ncol=N+1)
+samp<-setSampling (n=N, Terminal=Time)
+
+for (i in 1:nsim){
+  MSFTsimulationMerton <-simulate(mer, xinit=S0 , sampling=samp, true.par = list(mu=MertonParam[2], sigma=MertonParam[1], lambda=MertonParam[3], beta=MertonParam[4], dels=MertonParam[5]))
+  Merton_paths[i,] <- MSFTsimulationMerton@data@original.data 
+}
+colori=viridis(20)
+plot(Merton_paths[1,], col=0, type="l", ylim = c(min(Merton_paths[1,]),max(Merton_paths[1,])), #plot the Monte Carlo Simulation
+     main = "MC Simlation for Merton", sub = "100 steps, 1 paths", 
+     xlab = "Time", ylab = "Merton Process")
+lines(Merton_paths[1,], col=colori[15], lwd = 2)
+
+#n path
+Merton_paths<-matrix(nrow = nsim, ncol=N+1)
+samp<-setSampling (n=N, Terminal=Time)
+samp
+
+for (i in 1:nsim){
+  MSFTsimulationMerton <-simulate(mer, xinit=S0 , sampling=samp, true.par = list(mu=MertonParam[2], sigma=MertonParam[1], lambda=MertonParam[3], beta=MertonParam[4], dels=MertonParam[5]))
+  Merton_paths[i,] <- MSFTsimulationMerton@data@original.data 
+}
+
+colori=viridis(nsim)
+plot(Merton_paths[1,], col=0, type="l", ylim = c(min(Merton_paths),max(Merton_paths)), 
+     main = "Monte Carlo Simulation for Mertor returns", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "MXNR returns")
+for(i in 2:nsim){
+  lines(Merton_paths[i,], col=colori[i], lwd = 2);
+}
+
+```
+
+### CKLS - Parameter Estimation
+
+```{r}
+#CKLS parameter estimation with MLE
+
+ret <- setYuima(data=setData(adj_close))
+ckls <- setModel(drift="theta1-theta2*x", diffusion=matrix("theta3*x^theta4",1,1),solve.variable="x")
+startCkls <- list(theta1=.1, theta2 =.1, theta3 =.3, theta4=0.5)
+lowerCkls <- list(theta1=1e-3, theta2 =1e-6, theta3 =1e-3, theta4=1e-3)
+upperCkls <- list(theta1=3, theta2 =3, theta3 =3, theta4=2)
+
+yuima <- setYuima(data=ret@data, model=ckls)
+outCkls <- qmle(yuima,  start=startCkls, lower=lowerCkls, upper=upperCkls, method="L-BFGS-B")
+
+coef(outCkls)
+resultCkls <-  outCkls@coef
+CKLSParam <- t(outCkls@coef)
+
+theta1 <- as.numeric(CKLSParam[1])
+theta2 <- as.numeric(CKLSParam[2])
+theta3 <- as.numeric(CKLSParam[3])
+theta4 <- as.numeric(CKLSParam[4])
+
+###### CKLS - Simulation ######
+CKLS_paths <- matrix(nrow = nsim, ncol = N+1)
+samp <- setSampling (n=N, Terminal=Time)
+
+for (i in 1:nsim) {
+  MSFTsimulationCKLS <- simulate(ckls, xinit=S0 , sampling=samp, true.par = list(theta1=CKLSParam[3], theta2=CKLSParam[4], theta3=CKLSParam[1], theta4=CKLSParam[2]))
+  CKLS_paths[i,] <-  MSFTsimulationCKLS@data@original.data
+}
+
+colori=viridis(nsim)
+plot(CKLS_paths[1,], col=0, type="l", ylim = c(min(CKLS_paths),max(CKLS_paths)), 
+     main = "Monte Carlo Simulation for CKLS returns", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "CKLS returns")
+for(i in 2:nsim){
+  lines(CKLS_paths[i,], col=colori[i], lwd = 2);
+}
+
+```
+
+### CIR - Parameter Estimation
+
+```{r}
+#CIR parameter estimation with QMLE
+
+ret <- setYuima(data=setData(adj_close))
+CIR <- setModel(drift="theta1-theta2*x", diffusion=matrix("theta3*x^(1/2)",1,1),solve.variable="x")
+startCIR <- list(theta1=1, theta2 =.1, theta3 =.3)
+lowerCIR <- list(theta1=1e-6, theta2 =1e-6, theta3 =1e-6)
+upperCIR <- list(theta1=10, theta2 =10, theta3 =10)
+
+yuima <- setYuima(data=ret@data, model=CIR)
+outCIR <- qmle(yuima,  start=startCIR, lower=lowerCIR, upper=upperCIR, method="L-BFGS-B")
+coef(outCIR)
+resultCIR <- outCIR@coef
+CIRParam <- t(outCIR@coef)
+
+theta1 <- as.numeric(CIRParam[1])
+theta2 <- as.numeric(CIRParam[2])
+theta3 <- as.numeric(CIRParam[3])
+
+###### CIR - Simulation ######
+CIR_paths <- matrix(nrow = nsim, ncol = N+1)
+samp <- setSampling (n=N, Terminal=Time)
+
+for (i in 1:nsim) {
+  MSFTsimulationCIR <-simulate(CIR, xinit=adj_close[427,1] , sampling=samp, true.par = list(theta1=CIRParam[2], theta2=CIRParam[3], theta3=CIRParam[1]))
+  CIR_paths[i,] <-  MSFTsimulationCIR@data@original.data
+}
+
+colori=viridis(nsim)
+plot(CIR_paths[1,], col=0, type="l", ylim = c(min(CIR_paths),max(CIR_paths)), 
+     main = "Monte Carlo Simulation for CIR returns", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "CIR returns")
+for(i in 2:nsim){
+  lines(CIR_paths[i,], col=colori[i], lwd = 2);
+}
+
+```
+
+### CEV - Parameter Estimation
+
+```{r}
+#CEV parameter estimation with QMLE
+
+Delta<-1/252 
+
+ret <- setYuima(data=setData(adj_close))
+dat <- as.vector(coredata(ret@data@original.data))
+a.hat <- var(diff(log(dat)))/Delta
+b.hat <- mean(diff(log(dat)))/Delta + 0.5*a.hat
+cev <- setModel(drift="mu*x", diffusion="sigma*x^gamma", solve.variable="x")
+yuimaCEv <- setYuima(model=cev, data=ret@data)
+
+lowerCev <- list(mu=0.00001, sigma=0.001,gamma=0.000)
+upperCev <- list(mu=2, sigma=2,gamma=2)
+startCev <- list(mu=b.hat, sigma=a.hat, gamma=1)
+
+outCev <- qmle(yuimaCEv, start=startCev, upper=upperCev, lower=lowerCev, method="L-BFGS-B")
+
+summary(outCev)
+resultCev <- outCev@coef
+CEVParam <- t(outCev@coef)
+
+sigma <- as.numeric(CEVParam[1])
+gamma <- as.numeric(CEVParam[2])
+mu <- as.numeric(CEVParam[3])
+
+###### CEV - Simulation ######
+CEV_paths <- matrix(nrow = nsim, ncol = N+1)
+samp <- setSampling (n=N, Terminal=Time)
+
+for (i in 1:nsim) {
+  MSFTsimulationCEV <-simulate(cev, xinit=adj_close[427,1] , sampling=samp, true.par = list(mu=CEVParam[3], sigma=CEVParam[1], gamma=CEVParam[2]))
+  CEV_paths[i,] <-  MSFTsimulationCEV@data@original.data
+}
+
+colori=viridis(nsim)
+plot(CEV_paths[1,], col=0, type="l", ylim = c(min(CEV_paths),max(CEV_paths)), 
+     main = "Monte Carlo Simulation for CEV returns", sub = "10 steps, 10 paths", 
+     xlab = "Time", ylab = "CEV returns")
+for(i in 2:nsim){
+  lines(CEV_paths[i,], col=colori[i], lwd = 2);
+}
+```
+
+### NIG - Parameter Estimation
+
+```{r}
+#NDG parameter estimation with QMLE
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#NIG parameter estimation with MLE
+
+nigFit(l_ret)
+str(nigFit(l_ret))
+vg_param <- nigFit(l_ret)$param
+vg_param
+
+mu <- as.numeric(vg_param[1])
+delta <- as.numeric(vg_param[2])
+alpha <- as.numeric(vg_param[3])
+beta <- as.numeric(vg_param[4])
+NIG <- fit.NIGuv(l_ret)
+nsim <- 10
+N <- 100
+Time <- 1
+S0 <- 10 #(?)
+
+NIG_paths<-matrix(NA, nrow = nsim, ncol=N)
+#NIGexp = function (NIG, N, Time, r , S0 ) { 
+Time=Time/N
+X = rep (0 ,N+1)
+X[1] = 0
+
+for(i in 1:nsim){
+  generazioni <- rghyp(N, NIG)
+  for ( j in 1 :N) {
+    X[i+j]=X[j] + generazioni[j]
+    NIG_paths[i,j]<-X[j+1]
+  }
+}
+colori=viridis(nsim)
+plot(NIG_paths[nsimplot(NIG_paths[1,], col=0, type="l", ylim = c(min(NIG_paths[1,]),max(NIG_paths[1,])), #plot the Monte Carlo Simulation
+     main = "MC Simlation for NIG", sub = "100 steps, 1 paths", 
+     xlab = "Time", ylab = "NIG Process")
+lines(NIG_paths[1,], col=colori[20], lwd = 2)
+```
+
+# Levy processes
+
+Starting from the limitations of the GbM Paul Levy devised a new kind of stochastic process where spikes are possible
+
+1.  Distributions are not normal;
+2.  correlations converge on one;
+3.  markets are not efficient;
+4.  investors and traders are deeply flawed;
+5.  there is no such thing as a rational investor;
+6.  there are many anomalies
+
+Levy processes were introduced as the sum of a jump process and a Brownian motion with drift. The original idea was to construct a family of processes wide enough to comprise a variety of well-known other stochastic processes.
+
+with the summation of 2 different processes $X_t$ and $M_t$
+
+$$Z_t = X_t + M_t$$
+
+The initial process based on a GbM $$
+X_t = µt + σB_t   \ \ \ \ \ \ µ ∈ \mathbb R, \ \ σ ≥ 0
+$$
+
+And the second
+
+$$M_t =\sum ^{N_t}_{i=0}Y_{τi} − λ_t \mathbb E(Y_{τi}) \ \ \ λ ≥ 0$$
+
+with $N_t$ an homogenous Poisson process which counts the random number of jumps and $Y_{τi}$ a sequence of i.i.d. random variables which represent the entity of the jumps
+
+This process, within two random jumps, has a continuous paths.
+
+A stochastic process ${Zt , 0 ≤ t ≤ T}$, with $Z0 = 0$ almost surely is called a Levy process if the following properties are satisfied
+
+-   $Z_t$ has independent increments, i.e. $Zt − Zs$ is independent of $I_s$ , for any $0 ≤ s < t ≤ T$
+
+-   $Z_t$ has stationary increments, i.e. for any $0 ≤ s, t ≤ T$ the distribution of $Zt+s − Zt$ does not depend on $t$
+
+-   $Z_t$ is stochastically continuous, i.e. for every $0 ≤ t ≤ T$ and $ϵ> 0$ we have that $\lim_{s→t} P(|Zt − Zs | > ϵ) = 0$
+
+```{r levy process}
+startLV <- Qdate(9, 10, 2017)
+S <- Cl(getSymbols("AAPL", from = startLV, to = "2024-02-16", auto.assign = F))
+cp <- cpoint(as.numeric(S))
+
+cp
+
+ggplot(data = S, aes(x = index(S), y = S))+
+  geom_line()+
+  geom_vline(aes(xintercept = startLV+cp$tau0))
+
+S <- Cl(getSymbols("AAPL", from = startLV+cp$tau0, to = "2024-02-16", auto.assign = F))
+l_ret <- na.omit(diff(log(S)))
+
+# VARIANCE-GAMMA MODEL
+
+# Parameters fitting
+vgfit <- vgFit(l_ret) # esitmate VG parameters on the sample
+str(vgfit)
+summary(vgfit)
+
+data.frame(vgfit$param)
+vg_param <- as.numeric(vgfit$param)
+
+c <- vg_param[1]
+sigma <- vg_param[2]
+theta <- vg_param[3]
+nu <- vg_param[4]
+
+Time <- 1/4 # option maturity = 3 months
+N <- 100    # number of steps for each path
+r <- 0.01   # arbitrary risk-free rate
+nsim <- 100  # number of simulated path
+
+# Variance Gamma function
+VG <- function(sigma, nu, theta, Tf, N, r) {
+  a <- 1 / nu
+  b <- 1 / nu
+  h <- Time / N
+  Time <- (0:N) * Time / N
+  X <- rep(0, N + 1)
+  I <- rep(0, N)
+  X[1] <- 0
+  
+  for (i in 1:N) {
+    I[i] <- rgamma(1, a * h, b)
+    X[i + 1] <- X[i] + theta * I[i] + sigma * sqrt(I[i]) * rnorm(1)
+  }
+  
+  return((X))
+}
+
+VG_paths <- matrix(nrow = nsim, ncol = N + 1) # fill the matrix with random paths that follow
+
+for (i in 1:nsim) { # the function VG just created
+  VG_paths[i, ] <- VG(sigma, nu, theta, Time, N, r)
+}
+
+VG_paths %>%
+  t() %>%
+  format(scientific = TRUE, digits = 2) %>%
+  datatable()
+
+# plot the Monte Carlo Simulation
+colori <- viridis(nsim)
+plot(VG_paths[1, ],
+  col = 0, type = "l", ylim = c(min(VG_paths), max(VG_paths)),
+  main = "Monte Carlo Simulation for VG returns", sub = paste(N, "steps", nsim, "paths"),
+  xlab = "Time", ylab = "VG returns"
+)
+for (i in 2:nsim) {
+  lines(VG_paths[i, ], col = colori[i], lwd = 2)
+}
+
+grid.arrange(
+  ncol = 2,
+  cbind(VG_paths) %>% t() %>% quickplot(title = "Monte Carlo Simulation for VG returns", show_legend = F),
+  quickplot(apply(VG_paths, 2, mean), title = "Mean across timesteps", show_legend = F)
+)
+
+## TESTS (both graphical and not) OF DISTRIBUTIONAL ASSUMPTIONS
+# QQplot
+l_ret.s <- sort(as.numeric(l_ret)) # sort the log returns
+
+p <- ppoints(length(l_ret.s)) # plotting position
+
+VG.q <- qvg(p, vgC = c, sigma = sigma, theta = theta, nu = nu) # compute the quantile
+
+plot(VG.q, l_ret.s,
+  main = "Variance-Gamma Q-Q Plot",
+  xlab = "Theoretical Quantiles", ylab = "Sample Quantiles"
+)
+# good result, linear
+
+ggplot(data.frame(VG.q, l_ret.s), aes(x = VG.q, y = l_ret.s))+
+  geom_point()
+
+
+
+# Density comparison
+# kernel density and VG overlayed (Gaussian kernel, Silverman's rule of thumb)
+{plot(density(l_ret[-1, ]),
+  type = "l", lwd = 2, lty = 3, col = "coral2",
+  xlim = c(-0.03, 0.03), ylim = c(0, 120), main = "", xlab = "", ylab = ""
+)
+legend("topright",
+  inset = .02, c("Kernel", "VG"),
+  col = c("coral2", "seagreen3"), lwd = c(2, 1), lty = c(3, 1), cex = 0.8, bty = "n"
+)
+points(seq(min(l_ret[-1, ]), max(l_ret[-1, ]), length.out = 500),
+  dvg(
+    seq(min(l_ret[-1, ]), max(l_ret[-1, ]), length.out = 500),
+    mean(l_ret[-1, ]), sd(l_ret[-1, ])
+  ),
+  type = "l", col = "seagreen3"
+)# better fitting than the log-normal case
+
+}
+# Tests
+
+# H0 = The data is consistent with a specified reference distribution.
+# H1 = The data is NOT consistent with a specified reference distribution
+
+# Chi^2 test
+test <- chisq.test(l_ret.s, VG.q)
+
+# high p-value (0.24) -> we can'Time reject the null hypotesis
+# K-S test
+ks.test(as.numeric(l_ret), rvg(length(as.numeric(l_ret)), param = c(c, sigma, theta, nu)))
+# high p-value (0.10) -> we can'Time reject the null hypotesis
+# summary statistics
+final_retVG <- VG_paths[, N + 1]
+desc_df(data.frame(final_retVG))
+
+gghistogram(final_retVG, bins = 30, title = "Histogram of last time steps", 
+            subtitle = paste0("not much disclosing when nsim is small (now = ", nsim,")"))
+```
+
+```{r}
+#FROM VARIANCE-GAMMA RETURNS TO STOCK PRICES
+r <- 0.01
+S0 <- as.numeric(tail(S, n=1)) #prezzo inziale
+S0
+
+# function for stock price with VG returns
+VGexp <- function(sigma, nu, theta, Time, N, r, S0) {
+  a <- 1 / nu
+  b <- 1 / nu
+  h <- Time / N
+  Time <- (0:N) * Time / N
+  X <- rep(0, N + 1)
+  I <- rep(0, N)
+  X[1] <- S0
+  for (i in 1:N) {
+    I[i] <- rgamma(1, a * h, b) # gamma component for the jump
+    X[i + 1] <- X[i] * exp(r * Time + theta * I[i] + sigma * sqrt(I[i]) * rnorm(1))
+  }
+  return(X)
+}
+
+VGexp_paths <- matrix(nrow = nsim, ncol = N + 1)
+for (i in 1:nsim) {
+  VGexp_paths[i, ] <- VGexp(sigma, nu, theta, Time, N, r, S0)
+}
+
+VGexp_paths %>% t() %>% datatable()
+#plot MCS
+plot(VGexp_paths[1,], col=0, type="l", ylim = c(min(VGexp_paths),max(VGexp_paths)),
+     main = "MC Simlation for VG stock prices", sub = "100 steps, 10 paths",
+     xlab = "Time", ylab = "S&P 500")
+for(i in 2:nsim){
+  lines(VGexp_paths[i,], col=colori[i], lwd = 2);
+
+}
+
+VGexp_paths %>% quickplot(show_legend = F)
+
+#statistics on final prices
+final_pricesVG<-VGexp_paths[,N+1]
+
+#risk neutral transform
+rn_final_pricesVG<-S0*(final_pricesVG)*(exp(r*Time)/(mean(final_pricesVG)))
+
+basicStats(rn_final_pricesVG)
+grid.arrange(top = "Distribution of last prices", ncol=2,
+gghistogram(rn_final_pricesVG, bins = 30)+ labs(subtitle = "After MCM"),
+gghistogram(final_pricesVG, bins = 30, fill = "firebrick")+ labs(subtitle = "before MCM"))
+
+##OPTION PRICING
+K <- S0 #prova: opzione ATM
+payoff_VG <- pmax(rn_final_pricesVG - K, 0)
+optprice_VG <- mean(payoff_VG)*exp(-r*Time)
+optprice_VG
+```
+
+```{r}
+####### Pricing with FFT under the VG process
+# VG process
+theta <- -0.1436
+nu <- 0.3
+r <- 0.1
+sigma <- 0.12136
+Time <- 1 / 4
+K <- 101
+S <- 100
+alpha <- 1.65
+
+phiVG <- function(u) {
+  omega <- (1 / nu) * (log(1 - theta * nu - sigma^2 * nu / 2))
+  tmp <- 1 - (0 + 1i) * theta * nu * u + 0.5 * sigma^2 * u^2 * nu
+  tmp <- tmp^(-1 / nu)
+  exp((0 + 1i) * u * log(S0) + u * (r + omega) * (0 + 1i)) * tmp
+}
+
+FFTcall.price <- function(phi, S0, K, r, Time, alpha = 1, N = 2^12, eta = 0.25) {
+  m <- r - log(phi(-(0 + 1i)))
+  phi.tilde <- function(u) (phi(u) * exp((0 + 1i) * u * m))^Time
+  psi <- function(v) {
+    exp(-r * Time) * phi.tilde((v - (alpha +
+      1) * (0 + 1i))) / (alpha^2 + alpha - v^2 + (0 + 1i) * (2 *
+      alpha + 1) * v)
+  }
+  lambda <- (2 * pi) / (N * eta)
+  b <- 1 / 2 * N * lambda
+  ku <- -b + lambda * (0:(N - 1))
+  v <- eta * (0:(N - 1))
+  tmp <- exp((0 + 1i) * b * v) * psi(v) * eta * (3 + (-1)^(1:N) -
+    ((1:N) - 1 == 0)) / 3
+  ft <- fft(tmp)
+  res <- exp(-alpha * ku) * ft / pi
+  inter <- spline(ku, Re(res), xout = log(K / S0))
+  return(inter$y * S0)
+}
+
+FFTcall.price(phiVG, S0 = S0, K = K, r = r, Time = Time)
+```
+
+```{r}
+# MEIXNER MODEL
+# Moments: mean, variance, skewness, kurtosis
+x <- mean(l_ret, na.rm = TRUE)
+y <- sd(l_ret, na.rm = TRUE)
+z <- as.numeric(skewness(l_ret, na.rm = TRUE))
+w <- as.numeric(kurtosis(l_ret, na.rm = TRUE))
+# Mom: estimates parameters m, a, b, d as functions of the moments
+m <- x - ((z * sqrt(y)) / (w - (z^2) - 3))
+a <- sqrt(y * (2 * w - 3 * (z^2) - 6))
+b <- 2 * atan(-sqrt((z^2) / (2 * w - 3 * (z^2) - 6)))
+d <- 1 / (w - (z^2) - 3)
+
+# risk neutral transformation
+# Esscher transform: Meixner(a, a*theta + b, d, m) distribution
+
+# theta <- -1/a * (b + 2 * atan((-cos(a/2)+ exp((m-r)/2*d))/sin(a/2)))
+# b <- a*theta+b
+
+# mean correction
+
+# m <- r -2 *d*log(cos(b/2)/cos((a+b)/2))
+
+# Meixner function
+MX <- function(a, b, d, , N) {
+  distr <- udmeixner(a, b, d, m) # meixner distribution
+  gen <- pinvd.new(distr) # Polynomial interpolation of INVerse CDF
+  rdmMXgen <- ur(gen, N) # randomly draws N objects from gen (from a Meixner distr)
+  h <- Time / N
+  X <- rep(0, N + 1)
+  for (i in 1:N) {
+    X[i + 1] <- X[1] + rdmMXgen[i]
+  }
+  return(X)
+}
+
+# replicate(10,MX(a, b, d, m, N)) %>% apply(2, delog) %>% quickplot()
+
+MX_paths <- matrix(nrow = nsim, ncol = N + 1) # fill the matrix with random paths that follow
+for (i in 1:nsim) { # the function MX just created
+  MX_paths[i, ] <- MX(a, b, d, m, N)
+}
+
+MX_paths %>%
+  t() %>%
+  format(x = , scientific = TRUE, digits = 3) %>%
+  datatable()
+
+# plot the Monte Carlo Simulation
+plot(MX_paths[1, ],
+  col = 0, type = "l", ylim = c(min(MX_paths), max(MX_paths)),
+  main = "Monte Carlo Simulation for Meixner returns", sub = "100 steps, 10 paths",
+  xlab = "Time", ylab = "MXNR returns"
+)
+for (i in 2:nsim) {
+  lines(MX_paths[i, ], col = colori[i], lwd = 2)
+}
+
+t(MX_paths) %>% quickplot(show_legend = F)
+
+# QQplot
+MX.q <- uq(pinvd.new(udmeixner(a, b, d, m)), p) # compute the quantile
+
+plot(MX.q, l_ret.s,
+  main = "Meixner Q-Q Plot",
+  xlab = "Theoretical Quantiles", ylab = "Sample Quantiles"
+)
+# good result, linear
+
+# summary statistics
+final_retMX <- MX_paths[, N + 1]
+basicStats(final_retMX)
+hist(final_retMX) # not much disclosing when nsim is small
+```
+
+```{r}
+# #FROM MEIXNER RETURNS TO STOCK PRICES
+# 
+# #function for stock price with Meixner returns
+# MXexp=function(a, b, d, m, N, Time, r, S0) {
+#   distr <- udmeixner(a, b, d, m) #meiner distribution
+#   gen <- pinvd.new(distr) #Polynomial interpolation of INVerse CDF
+#   generazioni <- ur(gen,N) #randomly draws N objects from gen (from a Meixner distr)
+#   h=Time/N
+#   Time=(0:N)*Time/N
+#   X=rep(0,N+1)
+#   X[1]=S0
+#   for (i in 1:N){
+#     X[i+1]=X[1]*exp(r*Time+generazioni[i])
+#   }
+#   return(X)
+# }
+# 
+# MXexp(a, b, d, m, N, Time, r, S0)
+# 
+# MXexp_paths<-matrix(nrow = nsim, ncol=N+1)
+# for(i in 1:nsim){
+#   MXexp_paths[i,]<-MXexp(a,b,d,m,100,Time,r,S0) #vengono tutte le linee uguali perché MX non varia!
+# }
+# 
+# MXexp_paths %>% t() %>% round(2) %>% datatable()
+# 
+# #statistics on final prices
+# final_pricesMX<-MXexp_paths[,N+1]
+# 
+# #risk neutral transform
+# rn_final_pricesMX<-S0*(final_pricesMX)*(exp(r*Time)/(mean(final_pricesMX)))
+# rn_final_pricesMX %>% t() %>% datatable()
+# 
+# basicStats(rn_final_pricesMX)
+# hist(rn_final_pricesMX)
+# 
+# ########payoff if you use the Esscher transform or the first mean correcting martingale
+# 
+# #payoff_MX <- pmax(final_pricesMX - K, 0)
+# 
+# #optprice_MX <- mean(payoff_MX)*exp(-r*Time)
+# 
+# #optprice_MX
+# 
+# #########payoff if you mean correct of the simulated paths
+# 
+# payoff_MX <- pmax(rn_final_pricesMX - K, 0)
+# 
+# optprice_MX <- mean(payoff_MX)*exp(-r*Time)
+# 
+# optprice_MX
+```
+
+# Other stochastic processes tests of fitting
+
+```{r}
+start <- as.Date("2015-01-01") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+str(MSFT)
+head(MSFT)
+tail(MSFT)
+
+S <- MSFT$MSFT.Close
+X <- diff(log(S)) #Log-returns
+X <- na.omit(X)
+
+###### Basic Statistic ######  
+summary(S)
+skewness(S)
+kurtosis(S)
+summary <- sapply (S, summaryFull) 
+summarytable <- t(summary)
+colnames(summarytable) <- c("N",	"Mean",	"Median",	"10% Trimmed Mean",	"Geometric Mean",	"Skew",	"Kurtosis",	"Min",	"Max",	"Range",	"1st Quartile",	"3rd Quartile",	"Standard Deviation",	"Geometric SD",	"Interquartile Range",	"Median Absolute Deviation",	"Coefficient of Variation")
+summarytable
+
+summary(X)
+skewness(X)
+kurtosis(X)
+summary <- sapply (X, summaryFull) #this line has a problem.
+summarytable <- t(summary)
+colnames(summarytable) <- c("N",	"Mean",	"Median",	"10% Trimmed Mean",	"Geometric Mean",	"Skew",	"Kurtosis",	"Min",	"Max",	"Range",	"1st Quartile",	"3rd Quartile",	"Standard Deviation",	"Geometric SD",	"Interquartile Range",	"Median Absolute Deviation",	"Coefficient of Variation")
+summarytable
+
+###### Plot Data ######
+#names(S) <- c("MSFT")        
+#index(S) <- as.Date(index(S))
+stocks_series = tidy(S) %>% 
+  ggplot(aes(x=index,y=value)) +
+  geom_line(color="#69b3a2") +
+  ylab("stock price ($)")+
+  xlab("time") +
+  ggtitle("MSFT stock prices") +
+  theme_ipsum()
+
+stocks_series
+lineChart(S,name="MSFT",theme="white") #using the Quantmod package
+
+#index(X) <- as.Date(index(X))
+stocks_series_X = tidy(X) %>% 
+  ggplot(aes(x=index,y=value)) +
+  geom_line(color="#69b3a2") +
+  ylab("Log-returs price ($)")+
+  xlab("time") +
+  ggtitle("MSFT stock returns") +
+  theme_ipsum()
+
+stocks_series_X
+lineChart(X,name="MSFT",theme="white")
+
+###### Change point analysis ######
+start <- as.Date("2015-01-01") 
+end <- as.Date("2021-10-04")
+
+S <- get.hist.quote("MSFT", start = start, end = end)
+S <- S$Close
+cpoint(S)
+
+chartSeries(S, TA=c(addVo(), addBBands()), theme="white")
+addVLine = function(dtlist) plot(addTA(xts(rep(TRUE,NROW(dtlist)),dtlist),on=1,col="red"))
+addVLine(cpoint(S)$tau0)
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)  
+S <- MSFT$MSFT.Close
+
+stocks_series = tidy(S) %>% 
+  ggplot(aes(x=index,y=value)) +
+  geom_line(color="#69b3a2") +
+  ylab("stock price ($)")+
+  xlab("time") +
+  ggtitle("MSFT stock prices") +
+  geom_vline(xintercept = as.Date("2020-01-24"), color="orange", size=.9) +
+  annotate(geom="text", x=as.Date("2020-01-24"), y=25, 
+           label="CPoint") +
+  theme_ipsum()
+
+stocks_series    
+
+#Time serie after cpoint detection
+start <- as.Date("2020-01-24") #start <- cpoint(S)$tau 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+S <- MSFT$MSFT.Close
+X <- diff(log(S))
+X <- na.omit(X)
+summary(S)
+skewness(S)
+kurtosis(S)
+summary <- sapply (S, summaryFull) 
+summarytable <- t(summary)
+colnames(summarytable) <- c("N",	"Mean",	"Median",	"10% Trimmed Mean",	"Geometric Mean",	"Skew",	"Kurtosis",	"Min",	"Max",	"Range",	"1st Quartile",	"3rd Quartile",	"Standard Deviation",	"Geometric SD",	"Interquartile Range",	"Median Absolute Deviation",	"Coefficient of Variation")
+
+summarytable
+
+summary(X)
+skewness(X)
+kurtosis(X)
+
+stocks_series = tidy(S) %>% 
+  ggplot(aes(x=index,y=value)) +
+  geom_line(color="#69b3a2") +
+  ylab("stock price ($)")+
+  xlab("time") +
+  ggtitle("MSFT stock prices") +
+  theme_ipsum()
+
+stocks_series
+#lineChart(S,name="MSFT",theme="white") using the Quantmod package
+
+#index(X) <- as.Date(index(X))
+
+stocks_series_X = tidy(X) %>% 
+  ggplot(aes(x=index,y=value)) +
+  geom_line(color="#69b3a2") +
+  ylab("Log-returs price ($)")+
+  xlab("time") +
+  ggtitle("MSFT stock returns") +
+  theme_ipsum()
+
+stocks_series_X
+#lineChart(X,name="MSFT",theme="white")
+```
+
+```{r}
+###### GBM - Parameter Estimation ######
+start <- as.Date("2020-01-24") #start <- cpoint(S)$tau 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+S <- MSFT$MSFT.Close
+X <- diff(log(S))
+X <- na.omit(X)
+
+##historical volatility
+Delta <- 1/252
+alpha.hat <- mean(X, na.rm=TRUE)/Delta
+sigma.hat <- sqrt(var(X, na.rm=TRUE)/Delta)
+mu.hat <- alpha.hat + 0.5*sigma.hat^2
+alpha.hat
+sigma.hat
+mu.hat
+
+## MLE estimation 
+log.lik <- function(mu = 0.3978789, sigma = 0.3640475) -sum(dnorm(X, mean = mu, sd = sigma, log = TRUE))
+fit <- mle(log.lik, lower = c(0, 0), method = "L-BFGS-B")
+fit <- mle(log.lik, method = "Nelder-Mead")
+fit <- mle(log.lik, method = "SANN")
+fit
+summary(fit)
+fit@mu
+
+## QLME estimation 
+
+ymodel <- setModel(drift ="mu*x", diffusion = "sigma*x")
+yuima <- setYuima(model = ymodel, data=setData(S), 
+                  sampling=setSampling(delta=Delta,n=length(S)))
+mle1 <- qmle(yuima, start = list(mu = 0.3978789, sigma = 0.3640475),
+             lower = list(mu=0.05, sigma=0.05), upper = list(mu=.7, sigma=.5), 
+             method = "L-BFGS-B")
+mle1
+
+###### GBM - Test Fitting ######
+##Density plot and QQplot
+plot ( density (X), xlim = c(-0.2, 0.2), main =" STLA stock Density Plot ", lwd =2) #change value xlim according to data
+f <- function (u) dnorm (u, mean = mean (X), sd=sd(X))
+curve ( f, -0.1 , 0.1 , add =TRUE , col="red ",lwd =2)
+
+plot ( density (X), xlim = c(-0.1, -0.04), ylim = c(0.0, 4.00), main =" STLA stock Density Plot ", lwd =2) #change value xlim according to data
+f <- function (u) dnorm (u, mean = mean (X), sd=sd(X))
+curve ( f, -0.1 , -0.04 , add =TRUE , col="red ",lwd =2)
+
+plot ( density (X), xlim = c(0.04, 0.1), ylim = c(0.0, 4.00), main =" STLA stock Density Plot ", lwd =2) #change value xlim according to data
+f <- function (u) dnorm (u, mean = mean (X), sd=sd(X))
+curve ( f, 0.04 , 0.1 , add =TRUE , col="red ",lwd =2)
+
+plot ( density (X), xlim = c(-0.04, 0.04), main =" STLA stock Density Plot ", lwd =2) #change value xlim according to data
+f <- function (u) dnorm (u, mean = mean (X), sd=sd(X))
+curve ( f, -0.04 , 0.04 , add =TRUE , col="red ",lwd =2)
+
+qqnorm (X, main =" MSFT normal QQ Plot ")
+qqline (X, col =" red",lwd =2)
+
+## X^2 Test Normal ####
+X.s <- sort(as.numeric(X))
+p <- ppoints(length(X.s))
+
+Norm.q <- qnorm(p, mean=mean(l_ret.s), sd=sd(l_ret.s))
+chisq.test(l_ret.s, Norm.q)
+
+### K-S test ###
+#H0 = Two samples are drown from a population with same distribution.
+#H1 = Two samples have
+# p-value < 0.05 reject H0
+ks.test(as.numeric(X), #k-s against Normal
+        rvg(length(as.numeric(X)), 
+            param = c(c, sigma, theta, nu)))
+
+##AIC test
+AIC <- as.data.frame(matrix(NA, 1, 10)) #initializing AIC matrix in which storing max-likelihood values
+colnames(AIC) <- c("GBM", "VG", "NIG", "HYP", "GHYP", "OU", "Merton", "CKLS", "CIR", "CEV")
+rownames(AIC) <- "MSFT"
+
+##historical volatility
+
+Delta <- 1/252
+alpha.hat <- mean(X, na.rm=TRUE)/Delta
+sigma.hat <- sqrt(var(X, na.rm=TRUE)/Delta)
+mu.hat <- alpha.hat + 0.5*sigma.hat^2
+alpha.hat
+sigma.hat
+mu.hat
+b <- function(x,theta) theta[1]*x
+b.x <- function(x,theta) theta[1]
+s <- function(x,theta) theta[2]*x
+s.x <- function(x,theta) theta[2]*x
+s.xx <- function(x,theta) 0
+AIC[,1] <- sdeAIC(ts(S), NULL, b, s, b.x, s.x, s.xx, guess=c(1,1,1),
+                    lower=rep(1e-3,3), method="L-BFGS-B")
+
+```
+
+```{r}
+###### VG - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#VG parameter estimation with MLE
+
+vgFit(l_ret)    
+str(vgFit(l_ret))
+#vgFit(l_ret, method = "BFGS")
+#vgFit(l_ret, method = "nlm")
+vg_param <- vgFit(l_ret)$param
+vg_param
+
+c <- as.numeric(vg_param[1])
+sigma <- as.numeric(vg_param[2])
+theta <- as.numeric(vg_param[3])
+nu <- as.numeric(vg_param[4])
+
+sigma
+theta
+nu
+
+###### VG - Test Fitting ######
+
+##QQ Plot VGfit
+l_ret.s <- sort(as.numeric(l_ret)) 
+p <- ppoints(length(l_ret.s))
+VG.q <- qvg(p, vgC=c, sigma=sigma, theta=theta, nu=nu) 
+plot(VG.q, l_ret.s, main = "MSFT Variance-Gamma Q-Q Plot",
+     xlab = "Theoretical Quantiles", ylab = "Sample Quantiles")
+
+qqvg(l_ret.s, vgC = c, sigma = sigma, theta = theta, nu = nu,
+     param = c(c, sigma, theta, nu), main = "Variance Gamma Q-Q Plot",
+     xlab = "Theoretical Quantiles", 
+     ylab = "Sample Quantiles",
+     plot.it = TRUE, 
+     line =TRUE)
+
+#Density comparison
+#kernel density and VG overlayed (Gaussian kernel, Silverman's rule of thumb)
+plot(density(l_ret[-1,]), type = "l", lwd = 2, main ="Density Plot - MSFT")
+legend ("topright", inset = .02, c("Kernel", "VG"),
+        col=c("black","red"), lwd=c(2,2), lty=c(1,1), cex = 0.8, bty = "n")
+lines(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])), 
+      dvg(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])),
+          mean(l_ret[-1,]), sd(l_ret[-1,])), lwd=2, col="red")
+
+plot(density(l_ret[-1,]), type = "l", lwd = 2, main ="Density Plot - MSFT",
+     xlim= c(-0.15,-0.03), ylim=c(0,10))
+legend ("topright", inset = .02, c("Kernel", "VG"),
+        col=c("black","red"), lwd=c(2,2), lty=c(1,1), cex = 0.8, bty = "n")
+lines(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])), 
+      dvg(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])),
+          mean(l_ret[-1,]), sd(l_ret[-1,])), lwd=2, col="red")
+
+plot(density(l_ret[-1,]), type = "l", lwd = 2, main ="Density Plot - MSFT",
+     xlim= c(0.03,0.15), ylim=c(0,10))
+legend ("topright", inset = .02, c("Kernel", "VG"),
+        col=c("black","red"), lwd=c(2,2), lty=c(1,1), cex = 0.8, bty = "n")
+lines(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])), 
+      dvg(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])),
+          mean(l_ret[-1,]), sd(l_ret[-1,])), lwd=2, col="red")
+
+##Log-density comparison (rivedere)
+gridplot <- seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,]))
+plot(density(l_ret[-1,])$x, log(density(l_ret[-1,])$y), type = "l", lwd = 2)
+legend ("topright", inset = .02, c("Kernel", "VG"),
+        col=c("black","red"), lwd=c(2,2), lty=c(1,1), cex = 0.8, bty = "n")
+points(gridplot, log(dvg(gridplot, param = c(c, sigma, theta, nu))), 
+       type="l", col="red")
+
+##Chi^2 test 
+##H0 = The data is consistent with a specified reference distribution.
+##H1 = The data is NOT consistent with a specified reference distribution.
+l_ret.s <- sort(as.numeric(l_ret))
+p <- ppoints(length(l_ret.s)) #(?)
+
+VG.q <- qvg(p, vgC=c, sigma=sigma, theta=theta, nu=nu)
+chisq.test(l_ret.s, VG.q) #(se il pvalue è grande, accettiamo ip.nulla. ip.nulla=VG 'fitta' bene i dati)
+
+##K-S test
+ks.test(as.numeric(l_ret), rvg(length(as.numeric(l_ret)), 
+                               param = c(c, sigma, theta, nu)))
+
+### K-S test ###
+#H0 = Two samples are drown from a population with same distribution.
+#H1 = Two samples have
+# p-value < 0.05 reject H0
+ks.test(as.numeric(l_ret), #k-s against VG
+        rnorm(length(as.numeric(l_ret)), 
+              mean = mean(l_ret.s), sd=sd(l_ret.s)))
+
+##AIC
+NNN <- c(as.numeric(vgFit(l_ret)$maxLik))
+cat("AIC =", NNN)
+# AIC[,2] <-  -2* NNN + 2*4
+```
+
+### Meixner - Parameter Estimation
+
+```{r}
+start <- as.Date("2020-01-24") #start <- cpoint(S)$tau 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+##Merton parameter estimation with Method of Moment
+x <-mean(l_ret, na.rm = TRUE)
+y <-sd(l_ret, na.rm = TRUE)
+z <-as.numeric(skewness(l_ret, na.rm = TRUE))
+w <-as.numeric(kurtosis(l_ret, na.rm = TRUE))
+
+#Mom: estimates parameters m, a, b, d as functions of the moments
+m <- x-((z*sqrt(y))/(w-(z^2)-3)) 
+a <- sqrt(y*(2*w-3*(z^2)-6)) 
+b <- 2*atan(-sqrt((z^2)/(2*w-3*(z^2)-6))) 
+d <- 1/(w-(z^2)-3) 
+
+###### Meixner - Test Fitting ######
+##QQplot
+l_ret.s <- sort(as.numeric(l_ret))  #sort the log returns
+p <- ppoints(length(l_ret.s)) #plotting position
+MX.q <- uq(pinvd.new(udmeixner(a, b, d, m)), p) #compute the quantile
+
+plot(MX.q, l_ret.s, main = "MSFT Meixner QQ Plot",
+     xlab = "Theoretical Quantiles", ylab = "Sample Quantiles")
+
+##Chi^2 test 
+##H0 = The data is consistent with a specified reference distribution.
+##H1 = The data is NOT consistent with a specified reference distribution.
+l_ret.s <- sort(as.numeric(l_ret))  #sort the log returns
+chisq.test(l_ret.s, MX.q)
+
+```
+
+### NIG - Parameter Estimation
+
+```{r}
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#NIG parameter estimation with MLE
+nigFit(l_ret)
+str(nigFit(l_ret))
+vg_param <- nigFit(l_ret)$param
+vg_param
+
+mu <- as.numeric(vg_param[1])
+delta <- as.numeric(vg_param[2])
+alpha <- as.numeric(vg_param[3])
+beta <- as.numeric(vg_param[4])
+
+###### NIG - Test Fitting ######
+cat("AIC =", -2*nigFit(l_ret)$maxLik + 2*4)
+# AIC[,3] <-  -2*nigFit(l_ret)$maxLik + 2*4
+
+```
+
+### HYPERBOLIC - Parameter Estimation
+
+```{r}
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#HYPERBOLIC parameter estimation with MLE
+
+fit.hypuv(l_ret , silent =TRUE)
+str(fit.hypuv(l_ret))
+
+mu <- as.numeric(fit.hypuv(l_ret)@mu)
+sigma <- as.numeric(fit.hypuv(l_ret)@sigma)
+alpha.bar <- as.numeric(fit.hypuv(l_ret)@alpha.bar)
+gamma <- as.numeric(fit.hypuv(l_ret)@gamma)
+
+mu
+sigma
+alpha.bar
+gamma
+
+###### HYPERBOLIC - Test Fitting ######
+
+AIC[,4] <- fit.hypuv(l_ret)@aic
+
+```
+
+```{r}
+###### GEN HYPERBOLIC - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#GEN HYPERBOLIC parameter estimation with MLE
+
+fit.ghypuv(l_ret, silent = T)
+
+lambda <- as.numeric(fit.ghypuv(l_ret)@lambda)
+alpha.bar <- as.numeric(fit.ghypuv(l_ret)@alpha.bar)
+mu <- as.numeric(fit.ghypuv(l_ret)@mu)
+sigma <- as.numeric(fit.ghypuv(l_ret)@sigma)
+gamma <- as.numeric(fit.ghypuv(l_ret)@gamma)
+
+lambda
+alpha.bar
+mu
+sigma
+gamma
+
+###### HYPERBOLIC - Test Fitting ######
+AIC[,5] <- fit.ghypuv(l_ret)@aic
+
+```
+
+```{r}
+###### OU - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#OU parameter estimation with MLE
+fx <- expression (theta[1]-theta[2]*x)
+gx <- expression(theta[3])
+
+OU <- fitsde(data = ts(adj_close), drift =fx, diffusion = gx, start=list(theta1=.1, theta2 =.1, theta3 =.3), pmle="euler")
+OU_param <- t(OU$coef)
+OU_param
+
+theta1 <- as.numeric(OU_param[1])
+theta2 <- as.numeric(OU_param[2])
+theta3 <- as.numeric(OU_param[3])
+
+theta1
+theta2
+theta3
+###### HYPERBOLIC - Test Fitting ######
+AIC[,6] <- AIC(OU)
+
+```
+
+```{r}
+###### MERTON - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#MERTON parameter estimation with MLE
+
+Delta<-1/252 
+
+ret <- setYuima(data=setData(adj_close))
+dat <- as.vector(coredata(ret@data@original.data))
+a.hat <- var(diff(log(dat)))/Delta
+a.hat <- var(diff(log(dat)))/Delta
+b.hat <- mean(diff(log(dat)))/Delta + 0.5*a.hat
+mer <- setModel(drift="mu*x",diffusion="sigma*x",jump.coeff="1", measure=list(intensity="lambda", df=list("dnorm(z, beta, dels )")),measure.type="CP", solve.variable="x")
+yuimaMer <- setYuima(model=mer, data=ret@data)
+
+lower<-list(mu=0.00001, sigma=0.01, lambda=0.001, beta=0.0001, dels =0.1)
+upper<-list(mu=1, sigma=100,lambda=25, beta=50, dels =50)
+start<-list(mu=b.hat, sigma=a.hat, lambda=5, beta=1, dels =2)
+
+outMer <- qmle (yuimaMer, start=start, upper=upper, lower=lower, threshold = 2.5, method="L-BFGS-B")
+
+summary(outMer)
+resultCev <- outMer@coef
+MertonParam <- t(outMer@coef)
+MertonParam
+
+sigma <- as.numeric(MertonParam[1])
+mu <- as.numeric(MertonParam[2])
+lambda <- as.numeric(MertonParam[3])
+beta <- as.numeric(MertonParam[4])
+dels <- as.numeric(MertonParam[5])
+
+maxLik<-t(outMer@min)
+maxLik
+
+###### MERTON - Test Fitting ######
+
+#simulation
+N<-length(l_ret[,1])
+Delta=1/252
+Time<-N*Delta
+samp<-setSampling (n=N, Terminal=Time)
+
+MSFTsimulationMerton <-simulate(mer, xinit=adj_close[427,1] , sampling=samp, true.par = list(mu=MertonParam[2], sigma=MertonParam[1], lambda=MertonParam[3], beta=MertonParam[4], dels=MertonParam[5]))
+plot(MSFTsimulationMerton, main = "Merton Simulation", xlab = "Delta", ylab = "Price")
+plot(ret@data, main = " MSFT Stock Returns", xlab = "Delta", ylab = "Price")
+##AIC
+AIC[,7] <- -2*maxLik + 2*5
+AIC
+
+```
+
+```{r}
+###### CKLS - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#CKLS parameter estimation with MLE
+ret <- setYuima(data=setData(adj_close))
+ckls <- setModel(drift="theta1-theta2*x", diffusion=matrix("theta3*x^theta4",1,1),solve.variable="x")
+startCkls <- list(theta1=.1, theta2 =.1, theta3 =.3, theta4=0.5)
+lowerCkls <- list(theta1=1e-3, theta2 =1e-6, theta3 =1e-3, theta4=1e-3)
+upperCkls <- list(theta1=3, theta2 =3, theta3 =3, theta4=2)
+
+yuima <- setYuima(data=ret@data, model=ckls)
+outCkls <- qmle(yuima,  start=startCkls, lower=lowerCkls, upper=upperCkls, method="L-BFGS-B")
+
+coef(outCkls)
+resultCkls <-  outCkls@coef
+CKLSParam <- t(outCkls@coef)
+
+theta1 <- as.numeric(CKLSParam[1])
+theta2 <- as.numeric(CKLSParam[2])
+theta3 <- as.numeric(CKLSParam[3])
+theta4 <- as.numeric(CKLSParam[4])
+
+theta1
+theta2
+theta3
+theta4
+
+#### CKLS - Test Fitting ######
+
+#simulation
+N<-length(l_ret[,1])
+Delta=1/252
+Time<-N*Delta
+samp<-setSampling (n=N, Terminal=Time)
+
+MSFTsimulationCKLS <-simulate(ckls, xinit=adj_close[427,1] , sampling=samp, true.par = list(theta1=CKLSParam[3], theta2=CKLSParam[4], theta3=CKLSParam[1], theta4=CKLSParam[2]))
+plot(MSFTsimulationCKLS, main = "Merton Simulation", xlab = "Delta", ylab = "Price")
+plot(ret@data, main = " MSFT Stock Returns", xlab = "Delta", ylab = "Price")
+#AIC
+
+
+
+b <- function(x,theta) theta[1]-theta[2]*x
+b.x <- function(x,theta) -theta[2]
+
+s <- function(x,theta) theta[3]*x^theta[4]
+s.x <- function(x,theta) theta[3]*theta[4]*x^(theta[4]-1)
+s.xx <- function(x,theta) theta[3]*theta[4]*(theta[4]-1)*x^(theta[4]-2)
+AIC[,8] <- - sdeAIC(ts(adj_close), NULL, b, s, b.x, s.x, s.xx, guess=c(1,1,1,1),
+                    lower=rep(1e-3,4), method="L-BFGS-B")
+
+```
+
+```{r}
+###### CIR - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#CIR parameter estimation with QMLE
+ret <- setYuima(data=setData(adj_close))
+CIR <- setModel(drift="theta1-theta2*x", diffusion=matrix("theta3*x^(1/2)",1,1),solve.variable="x")
+startCIR <- list(theta1=1, theta2 =.1, theta3 =.3)
+lowerCIR <- list(theta1=1e-6, theta2 =1e-6, theta3 =1e-6)
+upperCIR <- list(theta1=10, theta2 =10, theta3 =10)
+  
+yuima <- setYuima(data=ret@data, model=CIR)
+outCIR <- qmle(yuima,  start=startCIR, lower=lowerCIR, upper=upperCIR, method="L-BFGS-B")
+coef(outCIR)
+resultCIR <- outCIR@coef
+CIRParam <- t(outCIR@coef)
+
+theta1 <- as.numeric(CIRParam[1])
+theta2 <- as.numeric(CIRParam[2])
+theta3 <- as.numeric(CIRParam[3])
+
+theta1
+theta2
+theta3
+
+#### CIR - Test Fitting ######
+
+#simulation
+N<-length(l_ret[,1])
+Delta=1/252
+Time<-N*Delta
+samp<-setSampling (n=N, Terminal=Time)
+
+MSFTsimulationCIR <-simulate(CIR, xinit=adj_close[427,1] , sampling=samp, true.par = list(theta1=CIRParam[2], theta2=CIRParam[3], theta3=CIRParam[1]))
+plot(MSFTsimulationCIR, main = "Merton Simulation", xlab = "Delta", ylab = "Price")
+plot(ret@data, main = " MSFT Stock Returns", xlab = "Delta", ylab = "Price")
+#AIC
+
+
+
+b <- function(x,theta) theta[1]-theta[2]*x
+b.x <- function(x,theta) -theta[2]
+
+s <- function(x,theta) theta[3]*x^(1/2)
+s.x <- function(x,theta) theta[3]*(1/2)/x^(1/2)
+s.xx <- function(x,theta) -theta[3]*(1/4)/x^(3/2)
+AIC[,9] <- - sdeAIC(ts(adj_close), NULL, b, s, b.x, s.x, s.xx, guess=c(1,1,1),
+                    lower=rep(1e-3,3), method="L-BFGS-B")
+
+```
+
+```{r}
+###### CEV - Parameter Estimation ######
+start <- as.Date("2020-01-24") 
+end <- as.Date("2021-10-04")
+
+MSFT <- getSymbols("MSFT", from = start, to = end, auto.assign = FALSE)
+attr(MSFT, "src")
+adj_close <- MSFT$MSFT.Adjusted
+l_ret <- diff(log(adj_close))
+l_ret <- na.omit(l_ret)
+
+#CEV parameter estimation with QMLE
+
+Delta<-1/252 
+
+ret <- setYuima(data=setData(adj_close))
+dat <- as.vector(coredata(ret@data@original.data))
+a.hat <- var(diff(log(dat)))/Delta
+b.hat <- mean(diff(log(dat)))/Delta + 0.5*a.hat
+cev <- setModel(drift="mu*x", diffusion="sigma*x^gamma", solve.variable="x")
+yuimaCEv <- setYuima(model=cev, data=ret@data)
+  
+  
+lowerCev <- list(mu=0.00001, sigma=0.001,gamma=0.000)
+upperCev <- list(mu=2, sigma=2,gamma=2)
+startCev <- list(mu=b.hat, sigma=a.hat, gamma=1)
+  
+outCev <- qmle(yuimaCEv, start=startCev, upper=upperCev, lower=lowerCev, method="L-BFGS-B")
+  
+summary(outCev)
+resultCev <- outCev@coef
+CEVParam <- t(outCev@coef)
+
+sigma <- as.numeric(CEVParam[1])
+gamma <- as.numeric(CEVParam[2])
+mu <- as.numeric(CEVParam[3])
+
+sigma
+gamma
+mu
+
+#### CEV - Test Fitting ######
+
+#simulation
+N<-length(l_ret[,1])
+Delta=1/252
+Time<-N*Delta
+samp<-setSampling (n=N, Terminal=Time)
+
+MSFTsimulationCEV <-simulate(cev, xinit=adj_close[427,1] , sampling=samp, true.par = list(mu=CEVParam[3], sigma=CEVParam[1], gamma=CEVParam[2]))
+plot(MSFTsimulationCEV, main = "CEV Simulation", xlab = "Delta", ylab = "Price")
+plot(ret@data, main = " MSFT Stock Returns", xlab = "Delta", ylab = "Price")
+#AIC
+
+
+
+b <- function(x,theta) theta[1]*x
+b.x <- function(x,theta) theta[1]
+
+s <- function(x,theta) theta[2]*x^theta[3]
+s.x <- function(x,theta) theta[2]*theta[3]*x^(theta[3]-1)
+s.xx <- function(x,theta) theta[2]*theta[3]*(theta[3]-1)*x^(theta[3]-2)
+AIC[,10] <-- sdeAIC (ts(adj_close), NULL, b, s, b.x, s.x, s.xx, guess=c(1,1,1),
+                     lower=rep(1e-3,3), method="L-BFGS-B")
+```
+
+# American options
+
+```{r}
+# ### least squares method
+# 
+# LSM <- function(n, d, S0, K, sigma, r, Time){
+#  s0 <- S0/K
+#  dt <- Time/d
+#  z <- rnorm(n)
+#  s.Time <- s0*exp((r-1/2*sigma^2)*Time+sigma*z*(Time^0.5))
+#  s.Time[(n+1):(2*n)] <- s0*exp((r-1/2*sigma^2)*Time-sigma*z*(Time^0.5))
+#  CC <- pmax(1-s.Time, 0)
+#  payoffeu <- exp(-r*Time)*(CC[1:n]+CC[(n+1):(2*n)])/2*K
+#  euprice <- mean(payoffeu)
+# 
+#  for(k in (d-1):1){
+#    z <- rnorm(n)
+#    mean <- (log(s0) + k*log(s.Time[1:n]))/(k+1)
+#    vol <- (k*dt/(k+1))^0.5*z
+#    s.Time.1 <- exp(mean+sigma*vol)
+#    mean <- (log(s0) + k*log( s.Time[(n+1):(2*n)] )) / ( k + 1 )
+#    s.Time.1[(n+1):(2*n)] <- exp(mean-sigma*vol)
+#    CE <- pmax(1-s.Time.1,0)
+#    idx<-(1:(2*n))[CE>0]
+#    discountedCC<- CC[idx]*exp(-r*dt)
+#    basis1 <- exp(-s.Time.1[idx]/2)
+#    basis2 <- basis1*(1-s.Time.1[idx])
+#    basis3 <- basis1*(1-2*s.Time.1[idx]+(s.Time.1[idx]^2)/2)
+# 
+#    p <- lm(discountedCC ~ basis1+basis2+basis3)$coefficients
+#    estimatedCC <- p[1]+p[2]*basis1+p[3]*basis2+p[4]*basis3
+#    EF <- rep(0, 2*n)
+#    EF[idx] <- (CE[idx]>estimatedCC)
+#    CC <- (EF == 0)*CC*exp(-r*dt)+(EF == 1)*CE
+#    s.Time <- s.Time.1
+#   }
+# 
+#   payoff <- exp(-r*dt)*(CC[1:n]+CC[(n+1):(2*n)])/2
+#   usprice <- mean(payoff*K)
+#   error <- 1.96*sd(payoff*K)/sqrt(n)
+#   earlyex <- usprice-euprice
+#   data.frame(usprice, error, euprice)
+# }
+# S0 <- 36
+# K <- 30
+# Time <- 1
+# r <- 0.05
+# sigma <- 0.4
+# LSM(10000, 3, S0, K, sigma, r, Time)
+```
+
+# Fraone
+
+$\sigma$ is important the price goes up the stairs and goes down by the elevator
+
+A pronounced left tail means that the BS fail since your empirical distribution changes heavily in that point which is important for pricing
+
+```{r}
+SPY_df <- ROC(Cl(getSymbols("SPY", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = "cont")
+gghistogram(SPY_df, add.rug = F) + ggtitle("SPY histogram of logreturns")
+gg_qq_plot(SPY_df, title = "SPY")
+```
+
+## Gamestop
+
+massive difference in movment between the 2021 movments with the wallstreetbets subreddit pushing prices up and the same period in 2020
+
+```{r}
+GME_df <- ROC(Cl(getSymbols("GME", from = Qdate(1,1,2021), to = Qdate(1,6,2021), auto.assign = F)), type = "cont")
+grid.arrange(ncol=2, top = "jan-jun 2021",
+gghistogram(GME_df, add.rug = F) + ggtitle("GME histogram of logreturns"),
+gg_qq_plot(GME_df, title = "GME"))
+
+
+GME_df <- ROC(Cl(getSymbols("GME", from = Qdate(1,1,2020), to = Qdate(1,6,2020), auto.assign = F)), type = "cont")
+grid.arrange(ncol=2, top = "jan-jun 2020",
+gghistogram(GME_df, add.rug = F) + ggtitle("GME histogram of logreturns"),
+gg_qq_plot(GME_df, title = "GME"))
+```
+
+## Zeta
+
+single tech stock with a couple of bull runs happening quickly
+
+```{r}
+Z_df <- ROC(Cl(getSymbols("Z", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = "cont")
+grid.arrange(ncol=2, top = "jan-jun 2021",
+gghistogram(Z_df, add.rug = F) + ggtitle("Z histogram of logreturns"),
+gg_qq_plot(Z_df, title = "Z"))
+
+```
+
+Bonds are different they dont have as much of left tail and the risk of downturn is not so present in the pricing structure
+
+```{r}
+SPY_df <- ROC(Cl(getSymbols("TLT", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = "cont")
+gghistogram(SPY_df, add.rug = F) + ggtitle("TLT histogram of logreturns")
+gg_qq_plot(SPY_df, title = "TLT")
+```
+
+Oil shows climate changes like cold spells and wars on the right tail supply and demand dynamics seen in the tails
+
+```{r}
+SPY_df <- ROC(Cl(getSymbols("USO", from = Qdate(1,1,2018), to = Qdate(1,1,2021), auto.assign = F)), type = "cont")
+gghistogram(SPY_df, add.rug = F) + ggtitle("USO histogram of logreturns")
+gg_qq_plot(SPY_df, title = "USO")
+```
+
+## Implied volatilty
+
+volatilty implied by the market price the market is always right instead of seeing options as $P=f(S,K,r,t, \sigma)$ you rewrite the function as $\sigma=f(S,K,r,t,P)$, you cant do it analytically and so you have to do this numerically options traded respect believed prices and and all market operators use the same model and the same GbM you should always see the same value coming out of the procedure
+
+in reality you dont see this and the option price should be the one that sigma will not be a function of anything else
+
+when you do this with market prices and you get the implied volatility you will not have the flat shape of the implied volatility, so returns are not normal and the GBM is not the correct way to visualize prices as that is the only parameter to change as the rest is observable and fixed

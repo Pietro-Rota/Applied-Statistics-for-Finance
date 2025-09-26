@@ -1,0 +1,6 @@
+"0","#| layout-ncol: 2"
+"0",""
+"0","p0 <- C"
+"0","minP <- min(p1 - err)"
+"0","maxP <- max(p1 + err)"
+"0","plot(m, p1, type = ""n"", ylim = c(minP, maxP), axes = F, ylab = ""MC price"",  xlab = ""MC replications"")"

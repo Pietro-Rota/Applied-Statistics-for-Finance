@@ -1,0 +1,2 @@
+"0","points(gridplot, log(dvg(gridplot, param = c(c, sigma, theta, nu))), "
+"0","       type=""l"", col=""red"")"

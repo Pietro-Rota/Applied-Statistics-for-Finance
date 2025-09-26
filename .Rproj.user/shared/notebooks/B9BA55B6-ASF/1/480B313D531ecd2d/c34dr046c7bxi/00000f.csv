@@ -1,0 +1,11 @@
+"0","d <- expression(-5 * x)"
+"0","s <- expression(3.5)"
+"0",""
+"0","X <- sde.sim(X0=10,drift =d,sigma =s)"
+"2","sigma.x not provided, attempting symbolic derivation.
+
+"
+"0","quickplot(sde.sim(X0 = 10, drift = d, sigma = s, M = 100), title = ""OU process user defined"", show_legend = F)"
+"2","sigma.x not provided, attempting symbolic derivation.
+
+"

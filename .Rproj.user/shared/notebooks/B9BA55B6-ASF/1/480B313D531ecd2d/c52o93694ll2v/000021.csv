@@ -1,0 +1,2 @@
+"0",""
+"0","plot ( density (X), xlim = c(-0.04, 0.04), main ="" STLA stock Density Plot "", lwd =2) #change value xlim according to data"

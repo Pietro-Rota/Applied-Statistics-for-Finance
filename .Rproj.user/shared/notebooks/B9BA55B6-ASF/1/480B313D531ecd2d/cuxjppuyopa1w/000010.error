@@ -1,0 +1,1 @@
+{"frames":[{"func":"rghyp(N, NIG)","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0},{"func":"ghypCheckPars(param)","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Errore in ghypCheckPars(param) : \n  l'oggetto 'list' non può essere convertito nel tipo 'double'\n"}

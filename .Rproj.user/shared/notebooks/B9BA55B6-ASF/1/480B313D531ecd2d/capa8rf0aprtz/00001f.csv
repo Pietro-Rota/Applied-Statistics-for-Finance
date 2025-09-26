@@ -1,0 +1,4 @@
+"0","for(i in 2:nsim){"
+"0","  lines(GBM_paths[i,], col=colori[i], lwd = 2);"
+"0","}"
+"0",""

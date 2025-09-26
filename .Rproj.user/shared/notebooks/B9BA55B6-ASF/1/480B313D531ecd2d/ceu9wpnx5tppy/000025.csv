@@ -1,0 +1,4 @@
+"0",""
+"0","##Log-density comparison (rivedere)"
+"0","gridplot <- seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,]))"
+"0","plot(density(l_ret[-1,])$x, log(density(l_ret[-1,])$y), type = ""l"", lwd = 2)"

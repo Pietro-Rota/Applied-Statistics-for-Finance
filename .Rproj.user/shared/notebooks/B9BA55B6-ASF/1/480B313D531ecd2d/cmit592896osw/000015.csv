@@ -1,0 +1,5 @@
+"0","#QQplot"
+"0","MX.q <- uq(pinvd.new(udmeixner(a, b, d, m)), p) #compute the quantile"
+"0",""
+"0","plot(MX.q, l_ret.s, main = ""Meixner Q-Q Plot"","
+"0","     xlab = ""Theoretical Quantiles"", ylab = ""Sample Quantiles"")"

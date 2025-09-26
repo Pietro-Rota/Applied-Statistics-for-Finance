@@ -1,0 +1,5 @@
+"0","#good result, linear"
+"0",""
+"0","#summary statistics"
+"0","final_retMX<-MX_paths[,N+1]"
+"0","basicStats(final_retMX)"

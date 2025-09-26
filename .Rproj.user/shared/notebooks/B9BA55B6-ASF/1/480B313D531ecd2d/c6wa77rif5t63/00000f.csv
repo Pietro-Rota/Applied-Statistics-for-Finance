@@ -1,0 +1,7 @@
+"0","#| layout-ncol: 2"
+"0","Sq <- getSymbols(""AAPL"", from = ""2015-02-17"", to = ""2025-02-17"", auto.assign = F)"
+"0",""
+"0","show_df(Sq, rounding = 2) %>% gt() %>% "
+"0","  sub_missing(columns = everything(), missing_text = ""⋮"") %>% "
+"0","  tab_header(title = ""Apple dataset"") %>%"
+"0","  opt_stylize(style = 5, add_row_striping = TRUE)"

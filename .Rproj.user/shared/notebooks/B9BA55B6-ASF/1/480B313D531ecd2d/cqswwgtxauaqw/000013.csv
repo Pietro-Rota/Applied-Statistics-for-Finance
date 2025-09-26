@@ -1,0 +1,4 @@
+"0","cbind(dnorm(-1000:1000/100, mean = 4, sd = 3) ,"
+"0","      dnorm(-1000:1000/100, mean = 2, sd = 3))%>% quickplot()+"
+"0","  geom_vline(aes(xintercept = 500))+"
+"0","  labs(title = ""MLE"", subtitle = ""vertical line is the unkonwn mean of my data, values increase as mu decreases"")"

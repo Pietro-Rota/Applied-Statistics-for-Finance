@@ -1,0 +1,4 @@
+"0","gg_qq_plot(SPY_df, title = ""TLT"")"
+"2","Errore in data.frame(sample = sort(data), theoretical = qnorm(ppoints(length(data)))) : 
+  gli argomenti implicano un numero differente di righe: 755, 756
+"

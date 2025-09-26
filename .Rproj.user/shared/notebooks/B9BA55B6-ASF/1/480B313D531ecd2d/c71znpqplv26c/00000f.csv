@@ -1,0 +1,6 @@
+"0","#| layout-ncol: 2"
+"0",""
+"0","S <- Cl(getSymbols(""AAPL"", from = ""2020-01-24"", to = ""2022-01-01"", auto.assign = F))"
+"0","X <- na.omit(diff(log(S)))"
+"0",""
+"0","gghistogram(X, add.normal = T)"

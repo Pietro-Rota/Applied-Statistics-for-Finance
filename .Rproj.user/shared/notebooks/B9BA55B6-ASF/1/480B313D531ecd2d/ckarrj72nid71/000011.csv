@@ -1,0 +1,1 @@
+"0","plot(ret@data, main = "" MSFT Stock Returns"", xlab = ""Delta"", ylab = ""Price"")"

@@ -1,0 +1,8 @@
+"0","data.frame(LR_sort = xnorm,"
+"0","           MLE = rnorm(1000, mean = coef(fit)[1], coef(fit)[2])) %>%"
+"0","  ggplot() +"
+"0","  geom_histogram(aes(x = LR_sort, fill = ""Log returns""), alpha = 0.8, bins = 80) +"
+"0","  geom_histogram(aes(x = MLE, fill = ""MLE""), alpha = 0.8, bins = 80) +"
+"0","  labs(title = ""Distribution charts of our real data and the one that we"", x = NULL) +"
+"0","  scale_fill_manual(name = NULL, values = c(""Log returns"" = ""indianred3"", MLE = ""lightblue"")) +"
+"0","  theme(legend.position = ""bottom"")"

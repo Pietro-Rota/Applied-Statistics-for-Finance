@@ -1,0 +1,47 @@
+"0",""
+"0","GBM_paths<-matrix(nrow = nsim, ncol=N+1)"
+"0",""
+"0","for(i in 1:nsim){"
+"0","  GBM_paths[i,]<-sde.sim(X0=S0, N=N, delta=Delta, model=""BS"", theta=c(mu.hat, sigma.hat))"
+"0","}"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"2","
+T set to = 0.396825
+
+"
+"0","GBM_paths %>% round(3) %>% datatable()"

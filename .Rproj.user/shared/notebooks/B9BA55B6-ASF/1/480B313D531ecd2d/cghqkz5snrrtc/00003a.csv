@@ -1,0 +1,6 @@
+"0","#plot MCS"
+"0","plot(VGexp_paths[1,], col=0, type=""l"", ylim = c(min(VGexp_paths),max(VGexp_paths)),"
+"0","     main = ""MC Simlation for VG stock prices"", sub = ""100 steps, 10 paths"","
+"0","     xlab = ""Time"", ylab = ""S&P 500"")"
+"2","Errore in plot.window(...) : i valori di 'ylim' devono essere finiti
+"

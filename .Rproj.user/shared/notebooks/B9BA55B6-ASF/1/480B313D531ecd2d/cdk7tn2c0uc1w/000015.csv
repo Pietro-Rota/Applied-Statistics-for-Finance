@@ -1,0 +1,4 @@
+"0",""
+"0",""
+"0","sde.sim(X0=S0, N=n, M = 10, delta=Delta, model=""BS"", theta=c(mu, sigma)) %>%"
+"0","  quickplot(""Montecarlo simulation of SDE Brownian motion"", subtitle = ""`M` allows to simulate more than one path"", show_legend = F)"
