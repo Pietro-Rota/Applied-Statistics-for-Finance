@@ -1,7 +1,0 @@
-"0","GME_df <- ROC(Cl(getSymbols(""GME"", from = Qdate(1,1,2021), to = Qdate(1,6,2021), auto.assign = F)), type = ""cont"")"
-"0","grid.arrange(ncol=2, top = ""jan-jun 2021"","
-"0","gghistogram(GME_df, add.rug = F) + ggtitle(""GME histogram of logreturns""),"
-"0","gg_qq_plot(GME_df, title = ""GME""))"
-"2","Errore in data.frame(sample = sort(data), theoretical = qnorm(ppoints(length(data)))) : 
-  gli argomenti implicano un numero differente di righe: 101, 102
-"

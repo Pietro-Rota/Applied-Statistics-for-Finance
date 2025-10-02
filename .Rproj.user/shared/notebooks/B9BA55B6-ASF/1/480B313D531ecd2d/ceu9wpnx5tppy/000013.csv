@@ -1,4 +1,0 @@
-"0",""
-"0","#Density comparison"
-"0","#kernel density and VG overlayed (Gaussian kernel, Silverman's rule of thumb)"
-"0","plot(density(l_ret[-1,]), type = ""l"", lwd = 2, main =""Density Plot - MSFT"")"

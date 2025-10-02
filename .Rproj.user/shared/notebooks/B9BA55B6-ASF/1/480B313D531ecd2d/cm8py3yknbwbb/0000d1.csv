@@ -1,4 +1,0 @@
-"0","# good result, linear"
-"0",""
-"0","ggplot(data.frame(VG.q, l_ret.s), aes(x = VG.q, y = l_ret.s))+"
-"0","  geom_point()"

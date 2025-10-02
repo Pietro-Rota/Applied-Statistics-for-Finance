@@ -55,7 +55,7 @@ library(ghyp)
 library(GeneralizedHyperbolic)
 library(EnvStats)
 library(Sim.DiffProc)
-source("C:/Users/pietr/OneDrive/Desktop/formula.main.R")
+source( "C:\\Users\\pietr\\OneDrive - City St George's, University of London\\Desktop\\formula.main.R")
 # knitr::opts_chunk$set(error=TRUE)
 knitr::opts_chunk$set(warning = FALSE)
 Sys.setlocale("LC_TIME", "C") # Set time locale to English
@@ -145,10 +145,10 @@ session_info$platform
 rm(session_info)
 ```
 
-Functions loaded from main
+Functions loaded from main\
 
 ```{r functions_loaded, echo=FALSE}
-file <- "C:\\Users\\pietr\\OneDrive\\Documenti\\CATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\ASF\\Applied_statistics_for_finance.qmd" 
+file <- "C:\\Users\\pietr\\OneDrive - City St George's, University of London\\Documents\\CATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\Applied-Statistics-for-Finance\\Applied_statistics_for_finance.qmd" 
 when_rendering(functions_loaded(file))
 ```
 

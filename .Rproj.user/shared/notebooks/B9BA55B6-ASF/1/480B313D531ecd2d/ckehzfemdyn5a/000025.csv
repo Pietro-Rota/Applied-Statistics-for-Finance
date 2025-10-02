@@ -1,3 +1,0 @@
-"0",""
-"0","# Add axes with better formatting"
-"0","axis(2, at = seq(minP, maxP, length.out = 5), las = 1, cex.axis = 1.2)"

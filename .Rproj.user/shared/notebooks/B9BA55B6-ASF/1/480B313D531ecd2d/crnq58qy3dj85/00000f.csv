@@ -1,7 +1,0 @@
-"0","if (knitr::is_latex_output() || knitr::is_html_output()) {"
-"0","  # Code that runs only during rendering"
-"0","  print(knitr::is_latex_output())"
-"0","  print(knitr::is_html_output())"
-"0","  library(purrr, quietly = T, warn.conflicts = F)"
-"0","  quickplot <- partial(quickplot, xlab = ""time"")"
-"0","}"

@@ -1,6 +1,0 @@
-"0","grid.arrange(ncol=2, top = ""100 simulations of both models"", "
-"0","            X2[, 1:100] %>% "
-"0","              quickplot(title = 'Using model = ""CIR""', show_legend = F),"
-"0","            X_many[, 1:100] %>%  "
-"0","              quickplot(title = ""Defining expressions"",show_legend = F))"
-"0",""

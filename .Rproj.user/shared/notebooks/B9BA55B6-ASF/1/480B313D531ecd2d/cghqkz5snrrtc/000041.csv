@@ -1,8 +1,0 @@
-"0",""
-"0","#statistics on final prices"
-"0","final_pricesVG<-VGexp_paths[,N+1]"
-"0",""
-"0","#risk neutral transform"
-"0","rn_final_pricesVG<-S0*(final_pricesVG)*(exp(r*Time)/(mean(final_pricesVG)))"
-"0",""
-"0","basicStats(rn_final_pricesVG)"

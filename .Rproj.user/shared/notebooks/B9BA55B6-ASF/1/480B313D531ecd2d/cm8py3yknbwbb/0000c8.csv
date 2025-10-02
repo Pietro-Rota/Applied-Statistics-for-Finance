@@ -1,8 +1,0 @@
-"0",""
-"0","# plot the Monte Carlo Simulation"
-"0","colori <- viridis(nsim)"
-"0","plot(VG_paths[1, ],"
-"0","  col = 0, type = ""l"", ylim = c(min(VG_paths), max(VG_paths)),"
-"0","  main = ""Monte Carlo Simulation for VG returns"", sub = ""100 steps, 10 paths"","
-"0","  xlab = ""Time"", ylab = ""VG returns"""
-"0",")"

@@ -1,3 +1,0 @@
-"0",""
-"0","# Confidence intervals"
-"0","lines(m, p1 + err, col = ""blue"", lwd = 2)"

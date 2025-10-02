@@ -1,3 +1,0 @@
-"0","lines(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])), "
-"0","      dvg(seq(min(l_ret[-1,]), max(l_ret[-1,]), length.out=length(l_ret[-1,])),"
-"0","          mean(l_ret[-1,]), sd(l_ret[-1,])), lwd=2, col=""red"")"
