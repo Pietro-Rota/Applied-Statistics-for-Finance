@@ -1,7 +1,7 @@
 #* AUTO-GENERATED STANDALONE R SCRIPT ----
 #* Generated from R Markdown file using extract_r_code()
 #* Source file: Applied_statistics_for_finance.qmd
-#* Generated on: 2025-09-26 10:27:57.811554
+#* Generated on: 2025-09-26 10:37:35.285598
 
 #* REQUIRED PACKAGES ----
 #? If you don't have these packages, run: install.packages(c("broom", "e1071", "foreach", "ggcorrplot", "gt", "knitr", "lubridate", "PerformanceAnalytics", "quantmod", "rugarch", "Sim", "tidyr", "tseries", "viridis", "yuima", "dplyr", "EnvStats", "forecast", "ggplot2", "gtExtras", "library("stats4")", "magrittr", "plotly", "reshape2", "Runuran", "Sim.DiffProc", "timeDate", "TTR", "viridisLite", "zoo", "DT", "fBasics", "GeneralizedHyperbolic", "ghyp", "hrbrthemes", "library("viridis")", "moments", "purrr", "reticulate", "sde", "stats4", "timeSeries", "VarianceGamma", "xts", " "))
@@ -2101,7 +2101,7 @@ implied_vol <- function(market_price, S, K, r, T, type = "call") {
 T_left <- as.numeric(Qdate(19,12,2025)-Qdate(27,5,2025))/365
 market_price <- as.numeric(Cl(getSymbols(Symbols = "SPY", auto.assign = FALSE, from = Qdate(29, 4, 2025), to = Qdate(30, 4, 2025))))
 
-dir <- "C:\\Users\\pietr\\OneDrive\\Documenti\\aCATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\ASF\\SPY chain.xlsx"
+dir <- "C:\\Users\\pietr\\OneDrive\\Documenti\\CATTOLICA ANNO 24-25\\2 SEMESTRE\\(ASF) - Applied Statistics for Finance\\(ASF) - R\\ASF\\SPY chain.xlsx"
 
 ## calls 
 data_calls <- readxl::read_xlsx(dir, sheet = "CALLS") %>% 
