@@ -1,0 +1,17 @@
+/.quarto/
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Ruserdata
+.yml
+
+
+/.quarto/
+/_site/
+
+.png
+
+
+# IDE and editor settings
+.vscode/
